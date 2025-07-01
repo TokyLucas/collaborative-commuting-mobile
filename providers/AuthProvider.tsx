@@ -1,5 +1,4 @@
 
-import { User } from "@/models/User";
 import { router } from "expo-router";
 import * as SecureStore from 'expo-secure-store';
 import { createContext, MutableRefObject, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
@@ -9,7 +8,7 @@ const AuthContext = createContext<{
     signIn: (arg0: string) => void,
     signOut: () => void,
     token: MutableRefObject<string | null> | null,
-    user: MutableRefObject<User | null> | null,
+    user: MutableRefObject<string | null> | null,
     isLoading: boolean,
 }>({
     signIn: () => null,
@@ -37,14 +36,14 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
 
             if (Platform.OS !== 'web') {
                 token = await SecureStore.getItemAsync('userToken');
-                user = await SecureStore.getItemAsync('userInfo');
+                user = await SecureStore.getItemAsync('userId');
             } else {
                 token = localStorage.getItem('userToken');
-                user = localStorage.getItem('userInfo');
+                user = localStorage.getItem('userId');
             }
 
             tokenRef.current = token || '';
-            userRef.current = user ? JSON.parse(user) : null;
+            userRef.current = user || '';
             setIsLoading(false);
         })()
     }, []);
@@ -74,24 +73,24 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
 
         if (Platform.OS !== 'web') {
             await SecureStore.setItemAsync('userToken', data.token);
-            await SecureStore.setItemAsync('userInfo', JSON.stringify(data.user));
+            await SecureStore.setItemAsync('userId', data.userId);
         } else {
             localStorage.setItem('userToken', data.token);
-            localStorage.setItem('userInfo', JSON.stringify(data.user));
+            localStorage.setItem('userId', data.userId);
         }
 
         tokenRef.current = data.token;
-        userRef.current = JSON.stringify(data.user);
+        userRef.current = data.userId;
         router.replace('/')
     }, []);
 
     const signOut = useCallback(async () => {
         if (Platform.OS !== 'web') {
             await SecureStore.deleteItemAsync('userToken');
-            await SecureStore.deleteItemAsync('userInfo');
+            await SecureStore.deleteItemAsync('userId');
         } else {
             localStorage.removeItem('userToken');
-            localStorage.removeItem('userInfo');
+            localStorage.removeItem('userId');
         }
 
         tokenRef.current = null;
