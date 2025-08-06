@@ -10,9 +10,12 @@ import {
 export default function MapScreen() {
   const mapRef = useRef<MapView>(null);
   const [region, setRegion] = useState<Region | null>(null);
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [markers, setMarkers] = useState<Disponibilite[]>([]);
   const [loading, setLoading] = useState(true);
-  const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -20,7 +23,6 @@ export default function MapScreen() {
       if (status !== 'granted') {
         console.warn('Permission localisation refusée');
         setLoading(false);
-        setInitializing(false);
         return;
       }
 
@@ -35,6 +37,10 @@ export default function MapScreen() {
       };
 
       setRegion(initRegion);
+      setUserLocation({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      });
       mapRef.current?.animateToRegion(initRegion, 1000);
 
       const nearby = await fetchNearbyDisponibilites(
@@ -43,21 +49,8 @@ export default function MapScreen() {
       );
       setMarkers(nearby);
       setLoading(false);
-      setInitializing(false);
     })();
   }, []);
-
-  // Fetch sur drag manuel uniquement
-  const onDragDone = async (newRegion: Region) => {
-    setRegion(newRegion);
-    setLoading(true);
-    const nearby = await fetchNearbyDisponibilites(
-      newRegion.latitude,
-      newRegion.longitude
-    );
-    setMarkers(nearby);
-    setLoading(false);
-  };
 
   if (loading || !region) {
     return (
@@ -72,9 +65,22 @@ export default function MapScreen() {
       ref={mapRef}
       style={styles.map}
       region={region}
-      showsUserLocation
-      onRegionDragComplete={onDragDone}
+      showsUserLocation={false}
+      onRegionDragComplete={newRegion => {
+        setRegion(newRegion);
+        fetchNearbyDisponibilites(newRegion.latitude, newRegion.longitude).then(setMarkers);
+      }}
     >
+      {/* Marqueur utilisateur */}
+      {userLocation && (
+        <Marker
+          coordinate={userLocation}
+          title="Vous"
+          pinColor="blue"
+        />
+      )}
+
+      {/* Autres marqueurs */}
       {markers.map(m => {
         const [lng, lat] = m.position.coordinates;
         return (

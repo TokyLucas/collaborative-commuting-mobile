@@ -4,9 +4,12 @@ import {
   ActivityIndicator,
   ViewStyle,
   StyleProp,
+  TouchableOpacity,
+  Dimensions,
 } from 'react-native';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuthSession } from '@/providers/AuthProvider';
 import UserService from '@/services/UserService';
@@ -21,13 +24,17 @@ export default function ExploreScreen() {
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   });
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [markers, setMarkers] = useState<
     Array<{ id: string; latitude: number; longitude: number; title: string }>
   >([]);
   const [loading, setLoading] = useState(true);
   const [initializing, setInitializing] = useState(true);
 
-  // 1. Centrage initial
+  // 1. Centrage initial + mémorisation de userLocation
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -49,18 +56,22 @@ export default function ExploreScreen() {
       };
 
       setRegion(initRegion);
-      mapRef.current?.animateToRegion(initRegion, 1000);
+      setUserLocation({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      });
+      mapRef.current?.animateToRegion(initRegion, 800);
+
       setLoading(false);
       setInitializing(false);
     })();
   }, []);
 
-  // 2. Chargement des marqueurs uniquement quand ce n'est pas le centrage initial
+  // 2. Chargement des marqueurs après le centrage initial
   useEffect(() => {
-    if (initializing) return;
-    if (!token?.current) return;
-
+    if (initializing || !token?.current) return;
     setLoading(true);
+
     UserService.getNearbyUsers(region, token.current)
       .then(res => res.text())
       .then(txt => (txt ? JSON.parse(txt) : []))
@@ -69,8 +80,18 @@ export default function ExploreScreen() {
       .finally(() => setLoading(false));
   }, [region, token, initializing]);
 
-  // 3. Ne plus binder onRegionChangeComplete directement
-  //    On utilise onRegionDragComplete (après que l'utilisateur ait fini de bouger la carte)
+  // 3. Recentrage manuel depuis le bouton
+  const recenter = () => {
+    if (!userLocation) return;
+    const r: Region = {
+      ...region,
+      latitude: userLocation.latitude,
+      longitude: userLocation.longitude,
+    };
+    setRegion(r);
+    mapRef.current?.animateToRegion(r, 500);
+  };
+
   return (
     <ThemedView style={styles.container}>
       <MapView
@@ -78,9 +99,16 @@ export default function ExploreScreen() {
         style={styles.map}
         region={region}
         onRegionDragComplete={setRegion}
-        showsUserLocation
-        showsMyLocationButton
+        showsUserLocation={false}
       >
+        {userLocation && (
+          <Marker
+            coordinate={userLocation}
+            title="Vous"
+            pinColor="blue"
+          />
+        )}
+
         {markers.map(m => (
           <Marker
             key={m.id}
@@ -89,6 +117,11 @@ export default function ExploreScreen() {
           />
         ))}
       </MapView>
+
+      {/* Bouton de recentrage */}
+      <TouchableOpacity style={styles.recenterBtn} onPress={recenter}>
+        <Ionicons name="locate-outline" size={28} color="#fff" />
+      </TouchableOpacity>
 
       {loading && (
         <ActivityIndicator
@@ -100,9 +133,24 @@ export default function ExploreScreen() {
   );
 }
 
+const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 } as StyleProp<ViewStyle>,
+
+  recenterBtn: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: '#007AFF',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+  },
+
   loaderOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(255,255,255,0.6)',
