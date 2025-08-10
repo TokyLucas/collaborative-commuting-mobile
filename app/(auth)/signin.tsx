@@ -1,5 +1,5 @@
 import { useAuthSession } from "@/providers/AuthProvider";
-import { Link } from 'expo-router';
+import { Link, useLocalSearchParams } from 'expo-router';
 import React from "react";
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet } from 'react-native';
@@ -23,6 +23,7 @@ import { Input, InputField, InputIcon, InputSlot } from "@/components/ui/input";
 import { VStack } from '@/components/ui/vstack';
 
 export default function SignInScreen() {
+    const localSearchParams = useLocalSearchParams();
     const [showPassword, setShowPassword] = React.useState(false);
     const [isLoading, setIsLoading] = React.useState(false);
     const [signInError, setSignInError] = React.useState(null);
@@ -89,6 +90,12 @@ export default function SignInScreen() {
                 </Center>
                 <ThemedText type="title">Connexion</ThemedText>
                 <VStack className='mt-3' space="md">
+                    {localSearchParams.infoMessage && (
+                        <Alert action="success" variant="solid">
+                            <AlertIcon as={InfoIcon} />
+                            <AlertText>{localSearchParams.infoMessage}</AlertText>
+                        </Alert>
+                    )}
                     {signInError && (
                         <Alert action="error" variant="solid">
                             <AlertIcon as={InfoIcon} />
@@ -117,6 +124,12 @@ export default function SignInScreen() {
                                 </Input>
                             )}
                         />
+                        <FormControlError>
+                            <FormControlErrorIcon as={AlertCircleIcon} />
+                            <FormControlErrorText>
+                                {validationError.email || ''}
+                            </FormControlErrorText>
+                        </FormControlError>
                     </FormControl>
                     <FormControl
                         size="sm"
