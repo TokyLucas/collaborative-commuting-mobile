@@ -1,3 +1,5 @@
+import { Region } from 'react-native-maps';
+
 export default class UserService {
     static API_URL: string = process.env.EXPO_PUBLIC_API_BASEURL || '';
 
@@ -7,7 +9,7 @@ export default class UserService {
             headers: { "Content-Type": "application/json" },
             body: creds,
         });
-        
+
         const data = await response.json();
 
         if (!response.ok) {
@@ -47,7 +49,7 @@ export default class UserService {
             return originalAppend.apply(this, arguments as any);
         };
 
-        
+
         data.append('profile-picture', {
             uri: profilePicture,
             name: `${userId}-profile-picture.jpg`,
@@ -67,24 +69,24 @@ export default class UserService {
         const match = base64String.match(/^data:(.*);base64,/);
         return match ? match[1] : null;
     };
-    
+
     public static async getNearbyUsers(
         region: Region,
         token: string
-      ): Promise<Response> {
+    ): Promise<Response> {
         const { latitude, longitude } = region;
         const params = new URLSearchParams({
-          lat: String(latitude),
-          lng: String(longitude),
-          radius: '30000',
+            lat: String(latitude),
+            lng: String(longitude),
+            radius: '30000',
         });
 
         return fetch(`${this.API_URL}/api/users/nearby?${params}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
         });
-      }
+    }
 }
