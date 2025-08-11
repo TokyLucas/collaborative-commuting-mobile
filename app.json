@@ -9,6 +9,9 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Pour afficher votre position sur la carte"
+      },
       "supportsTablet": true
     },
     "android": {
@@ -20,6 +23,7 @@
       "softwareKeyboardLayoutMode": "pan",
       "package": "com.anonymous.collaborativecommutingmobile"
     },
+
     "web": {
       "bundler": "metro",
       "output": "static",

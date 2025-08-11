@@ -67,4 +67,24 @@ export default class UserService {
         const match = base64String.match(/^data:(.*);base64,/);
         return match ? match[1] : null;
     };
+    
+    public static async getNearbyUsers(
+        region: Region,
+        token: string
+      ): Promise<Response> {
+        const { latitude, longitude } = region;
+        const params = new URLSearchParams({
+          lat: String(latitude),
+          lng: String(longitude),
+          radius: '30000',
+        });
+
+        return fetch(`${this.API_URL}/api/users/nearby?${params}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+      }
 }
