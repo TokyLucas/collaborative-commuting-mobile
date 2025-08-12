@@ -3,6 +3,7 @@ import { Region } from 'react-native-maps';
 export default class UserService {
     static API_URL: string = process.env.EXPO_PUBLIC_API_BASEURL || '';
 
+<<<<<<< Updated upstream
     public static async signUp(creds: any): Promise<any> {
         const response = await fetch(`${this.API_URL}/api/auth/signup`, {
             method: "POST",
@@ -82,6 +83,10 @@ export default class UserService {
         });
 
         return fetch(`${this.API_URL}/api/users/nearby?${params}`, {
+=======
+    public static async getUserById(userId: any, token: any): Promise<any> {
+        return fetch(`${this.API_URL}/api/users/me`, {
+>>>>>>> Stashed changes
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',

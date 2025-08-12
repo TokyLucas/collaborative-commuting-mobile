@@ -24,7 +24,7 @@ export function useAuthSession() {
 }
 
 export default function AuthProvider({ children }: { children: ReactNode }): ReactNode {
-    const API_URL: String = process.env.EXPO_PUBLIC_API_BASEURL || '';
+    const API_URL: string = process.env.EXPO_PUBLIC_API_BASEURL || '';
     const tokenRef = useRef<string | null>(null);
     const userRef = useRef<any | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -81,7 +81,7 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
 
         tokenRef.current = data.token;
         userRef.current = data.userId;
-        router.replace('/')
+        router.replace('/cond')
     }, []);
 
     const signOut = useCallback(async () => {
