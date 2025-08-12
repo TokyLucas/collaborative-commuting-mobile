@@ -11,12 +11,13 @@ import {
 
 import TrajetDetailModal from '../../../components/TrajetDetailModal'; // import modal détail
 import TrajetModal from '../../../components/TrajetModal';
+import TrajetUpdateModal from '../../../components/TrajetUpdateModal';
 import { TrajetConducteur } from '../../../models/TrajetConducteur';
 import TrajetConducteurService from '../../../services/TrajetConducteurService';
-
 export default function AccueilScreen() {
     const [trajets, setTrajets] = useState<TrajetConducteur[]>([]);
     const [modalVisible, setModalVisible] = useState(false);
+    const [updateModalVisible, setUpdateModalVisible] = useState(false);
     const [detailModalVisible, setDetailModalVisible] = useState(false);
     const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -45,7 +46,10 @@ export default function AccueilScreen() {
             console.error("Erreur API:", error);
         }
     };
-
+    const openUpdateModal = (id: string) => {
+        setSelectedId(id);
+        setUpdateModalVisible(true);
+    };
     const openDetail = (id: string) => {
         setSelectedId(id);
         setDetailModalVisible(true);
@@ -99,7 +103,12 @@ export default function AccueilScreen() {
                     setModalVisible={setModalVisible}
                     onTrajetAdded={fetchTrajets} // recharge la liste après ajout
                 />
-
+                <TrajetUpdateModal
+                    visible={updateModalVisible}
+                    setVisible={setUpdateModalVisible}
+                    trajetId={selectedId}
+                    onTrajetUpdated={fetchTrajets}  // recharge la liste après update
+                />
                 <TrajetDetailModal
                     visible={detailModalVisible}
                     onClose={closeDetail}

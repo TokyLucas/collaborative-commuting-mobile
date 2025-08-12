@@ -31,5 +31,24 @@ export default class TrajetConducteurService {
         });
         return response;
     }
+    public static async updateTrajet(id: string, dto: any, token: string): Promise<any> {
+    return fetch(`${this.API_URL}/api/trajetC/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(dto),
+    });
+}
+public static async getByConducteurId(conducteurId: string, token: string): Promise<any> {
+    return fetch(`${this.API_URL}/api/trajetC/conducteur/${conducteurId}`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+}
+
 
 }
