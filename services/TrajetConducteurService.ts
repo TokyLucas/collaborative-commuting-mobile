@@ -20,4 +20,16 @@ export default class TrajetConducteurService {
             },
         });
     }
+
+    public static async getById(id: string, token: string) {
+        const response = await fetch(`${this.API_URL}/api/trajetC/${id}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        return response;
+    }
+
 }

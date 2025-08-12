@@ -9,6 +9,7 @@ import {
     View
 } from 'react-native';
 
+import TrajetDetailModal from '../../../components/TrajetDetailModal'; // import modal détail
 import TrajetModal from '../../../components/TrajetModal';
 import { TrajetConducteur } from '../../../models/TrajetConducteur';
 import TrajetConducteurService from '../../../services/TrajetConducteurService';
@@ -16,32 +17,44 @@ import TrajetConducteurService from '../../../services/TrajetConducteurService';
 export default function AccueilScreen() {
     const [trajets, setTrajets] = useState<TrajetConducteur[]>([]);
     const [modalVisible, setModalVisible] = useState(false);
+    const [detailModalVisible, setDetailModalVisible] = useState(false);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchTrajets();
     }, []);
 
     const fetchTrajets = async () => {
-    try {
-        const token = await SecureStore.getItemAsync('userToken');
-        if (!token) {
-            console.error("Token manquant");
-            return;
+        try {
+            const token = await SecureStore.getItemAsync('userToken');
+            if (!token) {
+                console.error("Token manquant");
+                return;
+            }
+
+            const response = await TrajetConducteurService.getAll(token);
+            const data = await response.json();
+
+            if (!response.ok) {
+                console.error("Erreur lors du fetch:", data.message || "Erreur inconnue");
+                return;
+            }
+
+            setTrajets(data);
+        } catch (error) {
+            console.error("Erreur API:", error);
         }
+    };
 
-        const response = await TrajetConducteurService.getAll(token);
-        const data = await response.json();
+    const openDetail = (id: string) => {
+        setSelectedId(id);
+        setDetailModalVisible(true);
+    };
 
-        if (!response.ok) {
-            console.error("Erreur lors du fetch:", data.message || "Erreur inconnue");
-            return;
-        }
-
-        setTrajets(data);
-    } catch (error) {
-        console.error("Erreur API:", error);
-    }
-};
+    const closeDetail = () => {
+        setSelectedId(null);
+        setDetailModalVisible(false);
+    };
 
     return (
         <SafeAreaView style={styles.safe}>
@@ -51,8 +64,7 @@ export default function AccueilScreen() {
                     <TouchableOpacity onPress={() => setModalVisible(true)}>
                         <Text style={styles.addIcon}>➕</Text>
                     </TouchableOpacity>
-                    </View>
-
+                </View>
 
                 <FlatList
                     data={trajets}
@@ -64,17 +76,19 @@ export default function AccueilScreen() {
                             <Text>Statut : {item.statut}</Text>
 
                             <View style={styles.actionRow}>
-                                <TouchableOpacity onPress={() => console.log('Détails', item)}>
+                                <TouchableOpacity
+                                    style={styles.iconBtn}
+                                    onPress={() => openDetail(item.id!)}
+                                >
                                     <Text style={styles.icon}>🔍</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity onPress={() => console.log('Modifier', item)}>
+                                <TouchableOpacity style={styles.iconBtn}>
                                     <Text style={styles.icon}>✏️</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity onPress={() => console.log('Supprimer', item)}>
+                                <TouchableOpacity style={styles.iconBtn}>
                                     <Text style={styles.icon}>🗑️</Text>
                                 </TouchableOpacity>
                             </View>
-
                         </View>
                     )}
                     ListEmptyComponent={<Text style={styles.empty}>Aucun trajet disponible.</Text>}
@@ -85,6 +99,14 @@ export default function AccueilScreen() {
                     setModalVisible={setModalVisible}
                     onTrajetAdded={fetchTrajets} // recharge la liste après ajout
                 />
+
+                <TrajetDetailModal
+                    visible={detailModalVisible}
+                    onClose={closeDetail}
+                    trajetId={selectedId}
+                    onEdit={(trajet) => { /* gérer modifier ici */ }}
+                    onDelete={(trajet) => { /* gérer supprimer ici */ }}
+                />
             </View>
         </SafeAreaView>
     );
@@ -92,16 +114,15 @@ export default function AccueilScreen() {
 
 const styles = StyleSheet.create({
     header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-},
-addIcon: {
-    fontSize: 24,
-    color: '#4A90E2',
-},
-
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    addIcon: {
+        fontSize: 24,
+        color: '#4A90E2',
+    },
     safe: {
         flex: 1,
         backgroundColor: '#f3f3f3',
@@ -116,26 +137,24 @@ addIcon: {
         textAlign: 'center',
         marginBottom: 16,
     },
-    btn: {
-        backgroundColor: '#4A90E2',
-        padding: 12,
-        borderRadius: 8,
-        marginVertical: 8,
-        alignItems: 'center',
-    },
-    btnText: {
-        color: '#fff',
-        fontSize: 16,
-    },
     actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 10,
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 8,
+        marginTop: 10,
+    },
+    iconBtn: {
+        backgroundColor: '#e0e0e0',
+        borderRadius: 6,
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        borderWidth: 1,
+        borderColor: '#ccc',
     },
     icon: {
-        fontSize: 20,
+        fontSize: 16,
+        color: '#000',
     },
-
     card: {
         backgroundColor: '#fff',
         padding: 16,
