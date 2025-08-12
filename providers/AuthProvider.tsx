@@ -81,7 +81,7 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
 
         tokenRef.current = data.token;
         userRef.current = data.userId;
-        router.replace('/cond')
+        router.replace('/(authorized)/cond')
     }, []);
 
     const signOut = useCallback(async () => {

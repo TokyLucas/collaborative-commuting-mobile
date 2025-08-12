@@ -1,5 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as SecureStore from 'expo-secure-store';
 import React, { useState } from 'react';
 import {
     Alert,
@@ -54,9 +54,10 @@ export default function TrajetModal({ modalVisible, setModalVisible, onTrajetAdd
 
     const handleAdd = async () => {
         try {
-            const token = await AsyncStorage.getItem('token');
+            const token = await SecureStore.getItemAsync('userToken');            
+            const idConducteur = await SecureStore.getItemAsync('userId');
             if (!token) {
-                Alert.alert("Erreur", "Token non disponible.");
+                Alert.alert("Erreur", "Vous n'etes pas connecté");
                 return;
             }
 
@@ -76,7 +77,7 @@ export default function TrajetModal({ modalVisible, setModalVisible, onTrajetAdd
 
             const newTrajet: TrajetConducteur = {
                 id: result.id || '', // récupéré depuis la réponse backend
-                idConducteur: result.idConducteur || '', // idem
+                idConducteur: idConducteur || '', // idem
                 ...dto,
                 latDepart: parseFloat(dto.latDepart),
                 lngDepart: parseFloat(dto.lngDepart),
@@ -113,6 +114,13 @@ export default function TrajetModal({ modalVisible, setModalVisible, onTrajetAdd
         <Modal visible={modalVisible} transparent animationType="slide">
             <View style={styles.overlay}>
                 <View style={styles.modal}>
+                    <TouchableOpacity
+                        onPress={() => setModalVisible(false)}
+                        style={{ position: 'absolute', top: 10, right: 10, zIndex: 1 }}
+                    >
+                        <Text style={{ fontSize: 18, fontWeight: 'bold' }}>✕</Text>
+                    </TouchableOpacity>
+
                     <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
                         <Text style={styles.modalTitle}>Nouveau trajet</Text>
 

@@ -1,3 +1,4 @@
+import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from 'react';
 import {
     FlatList,
@@ -8,10 +9,9 @@ import {
     View
 } from 'react-native';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import TrajetModal from '../../components/TrajetModal';
-import { TrajetConducteur } from '../../models/TrajetConducteur';
-import TrajetConducteurService from '../../services/TrajetConducteurService';
+import TrajetModal from '../../../components/TrajetModal';
+import { TrajetConducteur } from '../../../models/TrajetConducteur';
+import TrajetConducteurService from '../../../services/TrajetConducteurService';
 
 export default function AccueilScreen() {
     const [trajets, setTrajets] = useState<TrajetConducteur[]>([]);
@@ -22,35 +22,37 @@ export default function AccueilScreen() {
     }, []);
 
     const fetchTrajets = async () => {
-        try {
-            const token = await AsyncStorage.getItem('token');
-            if (!token) {
-                console.error("Token manquant");
-                return;
-            }
-
-            const response = await TrajetConducteurService.getAll(token);
-            const data = await response.json();
-
-            if (!response.ok) {
-                console.error("Erreur lors du fetch:", data.message || "Erreur inconnue");
-                return;
-            }
-
-            setTrajets(data);
-        } catch (error) {
-            console.error("Erreur API:", error);
+    try {
+        const token = await SecureStore.getItemAsync('userToken');
+        if (!token) {
+            console.error("Token manquant");
+            return;
         }
-    };
+
+        const response = await TrajetConducteurService.getAll(token);
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error("Erreur lors du fetch:", data.message || "Erreur inconnue");
+            return;
+        }
+
+        setTrajets(data);
+    } catch (error) {
+        console.error("Erreur API:", error);
+    }
+};
 
     return (
         <SafeAreaView style={styles.safe}>
             <View style={styles.container}>
-                <Text style={styles.title}>Liste des trajets</Text>
+                <View style={styles.header}>
+                    <Text style={styles.title}>Liste des trajets</Text>
+                    <TouchableOpacity onPress={() => setModalVisible(true)}>
+                        <Text style={styles.addIcon}>➕</Text>
+                    </TouchableOpacity>
+                    </View>
 
-                <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.btn}>
-                    <Text style={styles.btnText}>➕ Ajouter un trajet</Text>
-                </TouchableOpacity>
 
                 <FlatList
                     data={trajets}
@@ -59,9 +61,20 @@ export default function AccueilScreen() {
                         <View style={styles.card}>
                             <Text style={styles.cardTitle}>{item.pointDepart} → {item.pointArrivee}</Text>
                             <Text>Heure : {new Date(item.heureDepartEstimee).toLocaleTimeString()}</Text>
-                            <Text>Places : {item.placesDisponibles}</Text>
-                            <Text>Description : {item.description}</Text>
                             <Text>Statut : {item.statut}</Text>
+
+                            <View style={styles.actionRow}>
+                                <TouchableOpacity onPress={() => console.log('Détails', item)}>
+                                    <Text style={styles.icon}>🔍</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => console.log('Modifier', item)}>
+                                    <Text style={styles.icon}>✏️</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => console.log('Supprimer', item)}>
+                                    <Text style={styles.icon}>🗑️</Text>
+                                </TouchableOpacity>
+                            </View>
+
                         </View>
                     )}
                     ListEmptyComponent={<Text style={styles.empty}>Aucun trajet disponible.</Text>}
@@ -78,6 +91,17 @@ export default function AccueilScreen() {
 }
 
 const styles = StyleSheet.create({
+    header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+},
+addIcon: {
+    fontSize: 24,
+    color: '#4A90E2',
+},
+
     safe: {
         flex: 1,
         backgroundColor: '#f3f3f3',
@@ -103,6 +127,15 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
     },
+    actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 10,
+    },
+    icon: {
+        fontSize: 20,
+    },
+
     card: {
         backgroundColor: '#fff',
         padding: 16,

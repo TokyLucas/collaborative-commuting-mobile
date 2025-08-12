@@ -64,15 +64,24 @@ export default function SignInScreen() {
                 password: false,
             });
             await signIn(creds);
-        } catch (error: any) {
-            setIsLoading(false);
-            setSignInError(error.message || 'An error occurred during login.');
-            setValidationError(error.fields);
-            setIsInvalid({
-                email: !!error.fields.email,
-                password: !!error.fields.password,
-            });
-        }
+        } 
+        catch (error: any) {
+    setIsLoading(false);
+    setSignInError(error.message || 'An error occurred during login.');
+
+    const fields = error.fields || {};
+
+    setValidationError({
+        email: fields.email || '',
+        password: fields.password || '',
+    });
+
+    setIsInvalid({
+        email: !!fields.email,
+        password: !!fields.password,
+    });
+}
+
     };
 
     return (
@@ -178,7 +187,7 @@ export default function SignInScreen() {
                     </Button>
                 </VStack>
                 <Link href="/cond" style={styles.link}>
-                    <ThemedText type="link">S'inscrire ?</ThemedText>
+                    <ThemedText type="link">Inscrire ?</ThemedText>
                 </Link>
             </ThemedView>
         </>
