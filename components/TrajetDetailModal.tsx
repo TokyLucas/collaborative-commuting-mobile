@@ -1,10 +1,10 @@
 import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Modal,
-    StyleSheet,
-    Text, TouchableOpacity, View
+  ActivityIndicator,
+  Modal,
+  StyleSheet,
+  Text, TouchableOpacity, View
 } from 'react-native';
 import { TrajetConducteur } from '../models/TrajetConducteur';
 import TrajetConducteurService from '../services/TrajetConducteurService';

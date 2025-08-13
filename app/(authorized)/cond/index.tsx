@@ -9,7 +9,7 @@ import {
     View
 } from 'react-native';
 
-import TrajetDetailModal from '../../../components/TrajetDetailModal'; // import modal détail
+import TrajetDetailModal from '../../../components/TrajetDetailModal';
 import TrajetModal from '../../../components/TrajetModal';
 import TrajetUpdateModal from '../../../components/TrajetUpdateModal';
 import { TrajetConducteur } from '../../../models/TrajetConducteur';
@@ -86,9 +86,13 @@ export default function AccueilScreen() {
                                 >
                                     <Text style={styles.icon}>🔍</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.iconBtn}>
+                                <TouchableOpacity
+                                    style={styles.iconBtn}
+                                    onPress={() => openUpdateModal(item.id!)}
+                                >
                                     <Text style={styles.icon}>✏️</Text>
                                 </TouchableOpacity>
+
                                 <TouchableOpacity style={styles.iconBtn}>
                                     <Text style={styles.icon}>🗑️</Text>
                                 </TouchableOpacity>
