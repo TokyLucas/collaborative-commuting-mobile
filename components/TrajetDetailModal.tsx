@@ -4,22 +4,32 @@ import {
   ActivityIndicator,
   Modal,
   StyleSheet,
-  Text, TouchableOpacity, View
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { TrajetConducteur } from '../models/TrajetConducteur';
 import TrajetConducteurService from '../services/TrajetConducteurService';
+import TrajetUpdateModal from './TrajetUpdateModal'; // 👈 Import du modal de mise à jour
 
 type Props = {
   visible: boolean;
   onClose: () => void;
   trajetId: string | null;
-  onEdit: (trajet: TrajetConducteur) => void;
   onDelete: (trajet: TrajetConducteur) => void;
+  onTrajetUpdated?: () => void; // 👈 pour recharger la liste après update
 };
 
-export default function TrajetDetailModal({ visible, onClose, trajetId, onEdit, onDelete }: Props) {
+export default function TrajetDetailModal({
+  visible,
+  onClose,
+  trajetId,
+  onDelete,
+  onTrajetUpdated,
+}: Props) {
   const [trajet, setTrajet] = useState<TrajetConducteur | null>(null);
   const [loading, setLoading] = useState(false);
+  const [updateVisible, setUpdateVisible] = useState(false); // 👈 état local du modal update
 
   useEffect(() => {
     if (visible && trajetId) {
@@ -61,16 +71,35 @@ export default function TrajetDetailModal({ visible, onClose, trajetId, onEdit, 
               <Text>Statut : {trajet.statut}</Text>
 
               <View style={styles.buttonRow}>
-                <TouchableOpacity onPress={() => onEdit(trajet)} style={[styles.btn, styles.edit]}>
+                <TouchableOpacity
+                  onPress={() => setUpdateVisible(true)} // 👈 ouvrir le modal update
+                  style={[styles.btn, styles.edit]}
+                >
                   <Text style={styles.btnText}>✏️ Modifier</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => onDelete(trajet)} style={[styles.btn, styles.delete]}>
+
+                <TouchableOpacity
+                  onPress={() => onDelete(trajet)}
+                  style={[styles.btn, styles.delete]}
+                >
                   <Text style={styles.btnText}>🗑️ Supprimer</Text>
                 </TouchableOpacity>
               </View>
+
               <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
                 <Text style={styles.closeText}>Fermer</Text>
               </TouchableOpacity>
+
+              <TrajetUpdateModal
+                visible={updateVisible}
+                setVisible={setUpdateVisible}
+                trajetId={trajet.id!}
+                onTrajetUpdated={() => {
+                  setUpdateVisible(false);
+                  onClose(); 
+                  onTrajetUpdated?.(); 
+                }}
+              />
             </>
           ) : (
             <Text>Aucun trajet trouvé</Text>
@@ -80,6 +109,7 @@ export default function TrajetDetailModal({ visible, onClose, trajetId, onEdit, 
     </Modal>
   );
 }
+
 
 
 const styles = StyleSheet.create({

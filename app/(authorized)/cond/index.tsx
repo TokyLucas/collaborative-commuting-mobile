@@ -112,14 +112,13 @@ export default function AccueilScreen() {
                     setVisible={setUpdateModalVisible}
                     trajetId={selectedId}
                     onTrajetUpdated={fetchTrajets}  // recharge la liste après update
-                />
-                <TrajetDetailModal
+                /><TrajetDetailModal
                     visible={detailModalVisible}
                     onClose={closeDetail}
                     trajetId={selectedId}
-                    onEdit={(trajet) => { /* gérer modifier ici */ }}
                     onDelete={(trajet) => { /* gérer supprimer ici */ }}
-                />
+                    onTrajetUpdated={fetchTrajets} // ✅ utile pour recharger après édition
+                    />
             </View>
         </SafeAreaView>
     );
