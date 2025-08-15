@@ -41,7 +41,8 @@ export default function AccueilScreen() {
                 return;
             }
 
-            setTrajets(data);
+            setTrajets(data.filter((trajet: TrajetConducteur) => trajet.actif === 1));
+
         } catch (error) {
             console.error("Erreur API:", error);
         }
@@ -59,6 +60,48 @@ export default function AccueilScreen() {
         setSelectedId(null);
         setDetailModalVisible(false);
     };
+const changerStatut = async (id: string, nouveauStatut: string) => {
+    try {
+        const token = await SecureStore.getItemAsync('userToken');
+        if (!token) {
+            console.error("Token manquant");
+            return;
+        }
+
+        const dto = { statut: nouveauStatut };
+        const response = await TrajetConducteurService.updateTrajet(id, dto, token);
+        if (!response.ok) {
+            const data = await response.json();
+            console.error("Erreur lors de la mise à jour du statut:", data.message || "Erreur inconnue");
+            return;
+        }
+
+        fetchTrajets(); // Recharger la liste
+    } catch (error) {
+        console.error("Erreur lors de la mise à jour du statut:", error);
+    }
+};
+const desactiverTrajet = async (id: string) => {
+    try {
+        const token = await SecureStore.getItemAsync('userToken');
+        if (!token) {
+            console.error("Token manquant");
+            return;
+        }
+
+        const dto = { actif: 0 }; 
+        const response = await TrajetConducteurService.updateTrajet(id, dto, token);
+        if (!response.ok) {
+            const data = await response.json();
+            console.error("Erreur lors de la désactivation:", data.message || "Erreur inconnue");
+            return;
+        }
+
+        fetchTrajets(); // Recharger la liste
+    } catch (error) {
+        console.error("Erreur lors de la désactivation du trajet:", error);
+    }
+};
 
     return (
         <SafeAreaView style={styles.safe}>
@@ -76,27 +119,54 @@ export default function AccueilScreen() {
                     renderItem={({ item }) => (
                         <View style={styles.card}>
                             <Text style={styles.cardTitle}>{item.pointDepart} → {item.pointArrivee}</Text>
-                            <Text>Heure : {new Date(item.heureDepartEstimee).toLocaleTimeString()}</Text>
+                            <Text>Heure de départ : {new Date(item.heureDepartEstimee).toLocaleTimeString()}</Text>
                             <Text>Statut : {item.statut}</Text>
 
                             <View style={styles.actionRow}>
-                                <TouchableOpacity
-                                    style={styles.iconBtn}
-                                    onPress={() => openDetail(item.id!)}
-                                >
-                                    <Text style={styles.icon}>🔍</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={styles.iconBtn}
-                                    onPress={() => openUpdateModal(item.id!)}
-                                >
-                                    <Text style={styles.icon}>✏️</Text>
-                                </TouchableOpacity>
+    {item.statut === 'Prévu' && (
+        <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => changerStatut(item.id!, 'En route')}
+        >
+            <Text style={styles.icon}>🟢</Text>
+        </TouchableOpacity>
+    )}
 
-                                <TouchableOpacity style={styles.iconBtn}>
-                                    <Text style={styles.icon}>🗑️</Text>
-                                </TouchableOpacity>
-                            </View>
+    <TouchableOpacity
+        style={styles.iconBtn}
+        onPress={() => openDetail(item.id!)}
+    >
+        <Text style={styles.icon}>🔍</Text>
+    </TouchableOpacity>
+
+    {item.statut !== 'terminé' && (
+    <>
+        <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => openUpdateModal(item.id!)}>
+            <Text style={styles.icon}>📝</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => desactiverTrajet(item.id!)}>
+            <Text style={styles.icon}>🗑️</Text>
+        </TouchableOpacity>
+    </>
+)}
+
+
+
+    {item.statut === 'En route' && (
+        <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => changerStatut(item.id!, 'terminé')}
+        >
+            <Text style={styles.icon}>🔴</Text>
+        </TouchableOpacity>
+    )}
+</View>
+
                         </View>
                     )}
                     ListEmptyComponent={<Text style={styles.empty}>Aucun trajet disponible.</Text>}
@@ -105,13 +175,13 @@ export default function AccueilScreen() {
                 <TrajetModal
                     modalVisible={modalVisible}
                     setModalVisible={setModalVisible}
-                    onTrajetAdded={fetchTrajets} // recharge la liste après ajout
+                    onTrajetAdded={fetchTrajets} 
                 />
                 <TrajetUpdateModal
                     visible={updateModalVisible}
                     setVisible={setUpdateModalVisible}
                     trajetId={selectedId}
-                    onTrajetUpdated={fetchTrajets}  // recharge la liste après update
+                    onTrajetUpdated={fetchTrajets}  
                 /><TrajetDetailModal
                     visible={detailModalVisible}
                     onClose={closeDetail}

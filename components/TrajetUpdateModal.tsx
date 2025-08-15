@@ -2,13 +2,13 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Modal,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import MapView, { MapPressEvent, Marker } from 'react-native-maps';
 import styles from '../assets/styles';
@@ -113,7 +113,7 @@ export default function TrajetUpdateModal({ visible, setVisible, trajetId, onTra
 
           <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
             <Text style={styles.modalTitle}>Modifier trajet</Text>
-
+            <Text style={styles.label}>Point de départ</Text>
             <TextInput style={styles.input} placeholder="Point de départ"
               value={form.pointDepart} onChangeText={txt => setForm({ ...form, pointDepart: txt })} />
             <MapView style={styles.map} initialRegion={INITIAL_REGION}
@@ -122,7 +122,7 @@ export default function TrajetUpdateModal({ visible, setVisible, trajetId, onTra
                 <Marker coordinate={{ latitude: parseFloat(form.latDepart), longitude: parseFloat(form.lngDepart) }} />
               )}
             </MapView>
-
+              
             <TextInput style={styles.input} placeholder="Point d’arrivée"
               value={form.pointArrivee} onChangeText={txt => setForm({ ...form, pointArrivee: txt })} />
             <MapView style={styles.map} initialRegion={INITIAL_REGION}
@@ -131,7 +131,7 @@ export default function TrajetUpdateModal({ visible, setVisible, trajetId, onTra
                 <Marker coordinate={{ latitude: parseFloat(form.latArrivee), longitude: parseFloat(form.lngArrivee) }} />
               )}
             </MapView>
-
+              <Text style={styles.label}>Heure de départ estimée</Text>
             <TouchableOpacity onPress={() => setShowTimePicker(true)} style={styles.input}>
               <Text>{form.heureDepartEstimee ? form.heureDepartEstimee.toLocaleTimeString() : 'Choisir une heure'}</Text>
             </TouchableOpacity>
@@ -146,16 +146,16 @@ export default function TrajetUpdateModal({ visible, setVisible, trajetId, onTra
                 }}
               />
             )}
-
+            <Text style={styles.label}>Places disponibles</Text>
             <TextInput style={styles.input} placeholder="Places disponibles"
               keyboardType="numeric" value={form.placesDisponibles}
               onChangeText={txt => setForm({ ...form, placesDisponibles: txt })} />
-
+          <Text style={styles.label}>Description</Text>
             <TextInput style={styles.input} placeholder="Description"
               value={form.description} onChangeText={txt => setForm({ ...form, description: txt })} />
+          <Text style={styles.label}>Statut</Text>
+            <Text style={[styles.input, { paddingVertical: 12 }]}>Statut : {form.statut}</Text>
 
-            <TextInput style={styles.input} placeholder="Statut"
-              value={form.statut} onChangeText={txt => setForm({ ...form, statut: txt })} />
 
             <View style={styles.buttons}>
               <TouchableOpacity onPress={handleUpdate} style={styles.btn}>

@@ -7,8 +7,9 @@ export interface TrajetConducteur {
     pointArrivee: string;
     latArrivee: number;
     lngArrivee: number;
-    heureDepartEstimee: string; // ISO string format (ex: "2025-08-03T14:30:00")
+    heureDepartEstimee: string; 
     placesDisponibles: number;
     description: string;
     statut: string;
+    actif: number
 }

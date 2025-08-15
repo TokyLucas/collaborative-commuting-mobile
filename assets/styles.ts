@@ -33,8 +33,11 @@ const styles = StyleSheet.create({
         marginVertical: 10,
     },
     label: {
-        fontWeight: 'bold',
-        marginTop: 10,
+  marginTop: 10,
+  marginBottom: 5,
+  fontWeight: 'bold',
+  fontSize: 14,
+  color: '#333',
     },
     buttons: {
         flexDirection: 'row',
@@ -56,6 +59,7 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: 'bold',
     },
+
 });
 
 export default styles;

@@ -5,6 +5,7 @@ import {
     Alert,
     Modal,
     ScrollView,
+    Switch,
     Text,
     TextInput,
     TouchableOpacity,
@@ -65,6 +66,7 @@ export default function TrajetModal({ modalVisible, setModalVisible, onTrajetAdd
                 ...form,
                 heureDepartEstimee: form.heureDepartEstimee.toISOString(),
                 placesDisponibles: parseInt(form.placesDisponibles, 10),
+                actif: 1
             };
 
             const response = await TrajetConducteurService.createTrajet(dto, token);
@@ -83,6 +85,7 @@ export default function TrajetModal({ modalVisible, setModalVisible, onTrajetAdd
                 lngDepart: parseFloat(dto.lngDepart),
                 latArrivee: parseFloat(dto.latArrivee),
                 lngArrivee: parseFloat(dto.lngArrivee),
+                actif: 1
             };
 
             onTrajetAdded(newTrajet);
@@ -122,60 +125,86 @@ export default function TrajetModal({ modalVisible, setModalVisible, onTrajetAdd
                     </TouchableOpacity>
 
                     <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
-                        <Text style={styles.modalTitle}>Nouveau trajet</Text>
+    <Text style={styles.modalTitle}>Nouveau trajet</Text>
 
-                        <TextInput style={styles.input} placeholder="Point de départ"
-                            value={form.pointDepart} onChangeText={txt => setForm({ ...form, pointDepart: txt })} />
-                        <MapView style={styles.map} initialRegion={INITIAL_REGION}
-                            onPress={e => handleMapPress('depart', e)}>
-                            {form.latDepart && form.lngDepart && (
-                                <Marker coordinate={{ latitude: parseFloat(form.latDepart), longitude: parseFloat(form.lngDepart) }} />
-                            )}
-                        </MapView>
+    <Text style={styles.label}>Point de départ</Text>
+    <TextInput
+        style={styles.input}
+        placeholder="Ex : Antaninarenina"
+        value={form.pointDepart}
+        onChangeText={txt => setForm({ ...form, pointDepart: txt })}
+    />
 
-                        <TextInput style={styles.input} placeholder="Point d’arrivée"
-                            value={form.pointArrivee} onChangeText={txt => setForm({ ...form, pointArrivee: txt })} />
-                        <MapView style={styles.map} initialRegion={INITIAL_REGION}
-                            onPress={e => handleMapPress('arrivee', e)}>
-                            {form.latArrivee && form.lngArrivee && (
-                                <Marker coordinate={{ latitude: parseFloat(form.latArrivee), longitude: parseFloat(form.lngArrivee) }} />
-                            )}
-                        </MapView>
+    <MapView style={styles.map} initialRegion={INITIAL_REGION} onPress={e => handleMapPress('depart', e)}>
+        {form.latDepart && form.lngDepart && (
+            <Marker coordinate={{ latitude: parseFloat(form.latDepart), longitude: parseFloat(form.lngDepart) }} />
+        )}
+    </MapView>
 
-                        <TouchableOpacity onPress={() => setShowTimePicker(true)} style={styles.input}>
-                            <Text>{form.heureDepartEstimee ? form.heureDepartEstimee.toLocaleTimeString() : 'Choisir une heure'}</Text>
-                        </TouchableOpacity>
-                        {showTimePicker && (
-                            <DateTimePicker
-                                value={form.heureDepartEstimee}
-                                mode="time"
-                                display="default"
-                                onChange={(_, date) => {
-                                    setShowTimePicker(false);
-                                    if (date) setForm({ ...form, heureDepartEstimee: date });
-                                }}
-                            />
-                        )}
+    <Text style={styles.label}>Point d’arrivée</Text>
+    <TextInput
+        style={styles.input}
+        placeholder="Ex : Ivandry"
+        value={form.pointArrivee}
+        onChangeText={txt => setForm({ ...form, pointArrivee: txt })}
+    />
 
-                        <TextInput style={styles.input} placeholder="Places disponibles"
-                            keyboardType="numeric" value={form.placesDisponibles}
-                            onChangeText={txt => setForm({ ...form, placesDisponibles: txt })} />
+    <MapView style={styles.map} initialRegion={INITIAL_REGION} onPress={e => handleMapPress('arrivee', e)}>
+        {form.latArrivee && form.lngArrivee && (
+            <Marker coordinate={{ latitude: parseFloat(form.latArrivee), longitude: parseFloat(form.lngArrivee) }} />
+        )}
+    </MapView>
 
-                        <TextInput style={styles.input} placeholder="Description"
-                            value={form.description} onChangeText={txt => setForm({ ...form, description: txt })} />
+    <Text style={styles.label}>Heure de départ estimée</Text>
+    <TouchableOpacity onPress={() => setShowTimePicker(true)} style={styles.input}>
+        <Text>{form.heureDepartEstimee ? form.heureDepartEstimee.toLocaleTimeString() : 'Choisir une heure'}</Text>
+    </TouchableOpacity>
+    {showTimePicker && (
+        <DateTimePicker
+            value={form.heureDepartEstimee}
+            mode="time"
+            display="default"
+            onChange={(_, date) => {
+                setShowTimePicker(false);
+                if (date) setForm({ ...form, heureDepartEstimee: date });
+            }}
+        />
+    )}
 
-                        <TextInput style={styles.input} placeholder="Statut"
-                            value={form.statut} onChangeText={txt => setForm({ ...form, statut: txt })} />
+    <Text style={styles.label}>Places disponibles</Text>
+    <TextInput
+        style={styles.input}
+        placeholder="Ex : 3"
+        keyboardType="numeric"
+        value={form.placesDisponibles}
+        onChangeText={txt => setForm({ ...form, placesDisponibles: txt })}
+    />
 
-                        <View style={styles.buttons}>
-                            <TouchableOpacity onPress={handleAdd} style={styles.btn}>
-                                <Text style={styles.btnText}>Ajouter</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => setModalVisible(false)} style={[styles.btn, styles.cancel]}>
-                                <Text style={styles.btnText}>Annuler</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </ScrollView>
+    <Text style={styles.label}>Description</Text>
+    <TextInput
+        style={styles.input}
+        placeholder="Ex : Trajet direct sans arrêt"
+        value={form.description}
+        onChangeText={txt => setForm({ ...form, description: txt })}
+    />
+
+    <Text style={styles.label}>Lancer le trajet maintenant ?</Text>
+<Switch
+  value={form.statut === 'En route'}
+  onValueChange={(value) =>
+    setForm({ ...form, statut: value ? 'En route' : 'Prévu' })
+  }
+/>
+
+    <View style={styles.buttons}>
+        <TouchableOpacity onPress={handleAdd} style={styles.btn}>
+            <Text style={styles.btnText}>Valider le trajet</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setModalVisible(false)} style={[styles.btn, styles.cancel]}>
+            <Text style={styles.btnText}>Annuler</Text>
+        </TouchableOpacity>
+    </View>
+</ScrollView>
                 </View>
             </View>
         </Modal>
