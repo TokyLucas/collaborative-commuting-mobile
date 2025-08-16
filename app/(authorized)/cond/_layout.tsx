@@ -8,7 +8,7 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { CircleUserRound, Home, Map } from 'lucide-react-native';
 
-export default function TabLayout() {
+export default function TabLayout1() {
     const colorScheme = useColorScheme();
 
     return (
@@ -20,6 +20,7 @@ export default function TabLayout() {
                 tabBarBackground: TabBarBackground,
                 tabBarStyle: Platform.select({
                     ios: {
+                        // Use a transparent background on iOS to show the blur effect
                         position: 'absolute',
                     },
                     default: {
@@ -31,14 +32,14 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="index"
                 options={{
-                    title: 'Home',
+                    title: 'Accueil',
                     tabBarIcon: ({ color }) => <Home color={color} size={24} />
                 }}
             />
             <Tabs.Screen
-                name="explore"
+                name="demande"
                 options={{
-                    title: 'Explore',
+                    title: 'Demande',
                     tabBarIcon: ({ color }) => <Map color={color} size={24} />
                 }}
             />
