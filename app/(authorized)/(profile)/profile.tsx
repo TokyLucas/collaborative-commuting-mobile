@@ -19,6 +19,7 @@ import {
 import { VStack } from '@/components/ui/vstack';
 
 import { Button, ButtonText } from "@/components/ui/button";
+import { User } from '@/models/User';
 import { useAuthSession } from "@/providers/AuthProvider";
 import UserService from "@/services/UserService";
 
