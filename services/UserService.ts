@@ -30,6 +30,38 @@ export default class UserService {
         return data;
     }
 
+    public static async updateProfile(userId: any, creds: any, token: any): Promise<any> {
+        if (creds.password === "") {
+            delete creds.password;
+        }
+        creds = JSON.stringify(creds);
+
+        const response = await fetch(`${this.API_URL}/api/users/profile/${userId}`, {
+            method: "PUT",
+            headers: { 
+                'Content-Type' : 'application/json',
+                'Authorization': `Bearer ${token}` 
+            },
+            body: creds,
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            const error = new Error();
+
+            let fields: any = data.fields || [];
+            let fieldskv: any = {};
+            fields.forEach((item: any) => {
+                const [key, ...rest] = item.split(':');
+                fieldskv[key.trim()] = rest.join(':').trim();
+            });
+
+            (error as any).fields = fieldskv;
+            (error as any).message = data.message;
+            throw error;
+        }
+    }
+
     public static async getUserById(token: any): Promise<any> {
         return fetch(`${this.API_URL}/api/users/me`, {
             method: 'GET',
