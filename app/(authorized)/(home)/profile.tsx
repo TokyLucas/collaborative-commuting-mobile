@@ -1,11 +1,13 @@
 import { User } from "@/models/User";
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 import React from "react";
 import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Center } from '@/components/ui/center';
+import { HStack } from '@/components/ui/hstack';
 import { Image } from "@/components/ui/image";
 import {
     Modal,
@@ -24,6 +26,7 @@ import UserService from "@/services/UserService";
 export default function ProfileScreen() {
     const { token, user } = useAuthSession()
     const { signOut } = useAuthSession();
+    const router = useRouter();
     const API_URL: String = process.env.EXPO_PUBLIC_API_BASEURL || '';
 
     const [userProfile, setUserProfile] = React.useState<User | null>(null);
@@ -73,7 +76,7 @@ export default function ProfileScreen() {
     return (
         <>
             <ThemedView style={styles.container}>
-                <VStack className='mt-3 overflow-auto' space="md">
+                <VStack className='mt-3' space="md">
                     <Pressable onPress={ () =>  { 
                             setProfilePictureModal(true);
                             setProfilePicture(null);
@@ -92,13 +95,25 @@ export default function ProfileScreen() {
                     </Pressable>
                     <ThemedText type="title">Profile</ThemedText>
                     <ThemedText type="default">{userProfile?.firstName} {userProfile?.lastName}</ThemedText>
-                    <VStack space="sm">
-                        <ThemedText type="subtitle">Email</ThemedText>
-                        <ThemedText type="default">{userProfile?.email}</ThemedText>
+                    <ThemedText type="subtitle">{userProfile?.type}</ThemedText>
+                    <VStack space="sm" className="border-t border-gray-600 py-2">
+                        <>
+                            <ThemedText type="subtitle" className="text-gray-500">Email</ThemedText>
+                            <ThemedText type="default">{userProfile?.email}</ThemedText>
+                        </>
+                        <>
+                            <ThemedText type="subtitle" className="text-gray-500">Date de naissance</ThemedText>
+                            <ThemedText type="default">{userProfile?.birthDate && new Date(userProfile.birthDate).toLocaleDateString()}</ThemedText>
+                        </>
                     </VStack>
-                    <Button action="negative" onPress={signOut}>
-                        <ButtonText>Se deconnecter</ButtonText>
-                    </Button>
+                    <HStack space="xs" className="flex justify-between">
+                        <Button action="primary" className="w-1/2" onPress={() => router.replace('/edit-profile')}>
+                            <ButtonText>Modifier le profile</ButtonText>
+                        </Button>
+                        <Button action="negative" className="w-1/2" onPress={signOut}>
+                            <ButtonText>Se deconnecter</ButtonText>
+                        </Button>
+                    </HStack>
                 </VStack>
                 <Modal
                     isOpen={showProfilePictureModal}
@@ -146,6 +161,6 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 20,
+        padding: 20
     },
 });
