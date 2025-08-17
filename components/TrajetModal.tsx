@@ -41,7 +41,7 @@ export default function TrajetModal({ modalVisible, setModalVisible, onTrajetAdd
         heureDepartEstimee: new Date(),
         placesDisponibles: '',
         description: '',
-        statut: '',
+        statut: 'Prévu',
     });
 
     const handleMapPress = (type: 'depart' | 'arrivee', e: MapPressEvent) => {
