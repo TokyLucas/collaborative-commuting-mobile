@@ -11,5 +11,8 @@ export interface TrajetConducteur {
     placesDisponibles: number;
     description: string;
     statut: string;
-    actif: number
+    actif: number;
+    marque: string;
+    type: string;
+    couleur: string;
 }
