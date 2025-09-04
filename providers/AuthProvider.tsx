@@ -81,7 +81,13 @@ console.log("Login reponse iid:", data);
 
         tokenRef.current = data.token;
         userRef.current = data.userId;
-        router.replace('/(authorized)/cond')
+if (data.role === "CONDUCTEUR") {
+  router.replace("/(authorized)/cond");
+} else {
+  router.replace("/(authorized)/(home)");
+}
+
+
     }, []);
 
     const signOut = useCallback(async () => {

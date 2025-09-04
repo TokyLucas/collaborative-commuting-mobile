@@ -59,5 +59,15 @@ public static async getByConducteurId(conducteurId: string, token: string): Prom
     });
 }
 
+public static async getByIdView(id: string, token: string): Promise<any> {
+  return fetch(`${this.API_URL}/api/trajetC/getOne/${id}`, {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+}
+
+
 
 }
