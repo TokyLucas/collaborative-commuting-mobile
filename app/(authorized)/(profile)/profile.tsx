@@ -110,10 +110,15 @@ export default function ProfileScreen() {
                         <Button action="primary" className="w-1/2" onPress={() => router.replace('/edit-profile')}>
                             <ButtonText>Modifier le profile</ButtonText>
                         </Button>
-                        <Button action="negative" className="w-1/2" onPress={signOut}>
-                            <ButtonText>Se deconnecter</ButtonText>
+                        <Button action="secondary" className="w-1/2" onPress={() => {
+                            router.replace('/cond')
+                        }}>
+                            <ButtonText>Retour</ButtonText>
                         </Button>
                     </HStack>
+                    <Button action="negative" onPress={signOut}>
+                        <ButtonText>Se deconnecter</ButtonText>
+                    </Button>
                 </VStack>
                 <Modal
                     isOpen={showProfilePictureModal}
