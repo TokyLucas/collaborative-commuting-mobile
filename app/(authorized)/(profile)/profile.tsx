@@ -116,6 +116,9 @@ export default function ProfileScreen() {
                             <ButtonText>Retour</ButtonText>
                         </Button>
                     </HStack>
+                    <Button action="secondary" onPress={ () => router.replace('/exemple-chat') }>
+                        <ButtonText>Exemple chat </ButtonText>
+                    </Button>
                     <Button action="negative" onPress={signOut}>
                         <ButtonText>Se deconnecter</ButtonText>
                     </Button>
