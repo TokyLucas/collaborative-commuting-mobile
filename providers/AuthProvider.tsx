@@ -55,7 +55,7 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
             body: creds,
         });
         const data = await response.json();
-
+console.log("Login reponse iid:", data);
         if (!response.ok) {
             const error = new Error();
 
@@ -81,7 +81,13 @@ export default function AuthProvider({ children }: { children: ReactNode }): Rea
 
         tokenRef.current = data.token;
         userRef.current = data.userId;
-        router.replace('/(authorized)/cond')
+if (data.role === "CONDUCTEUR") {
+  router.replace("/(authorized)/cond");
+} else {
+  router.replace("/(authorized)/(home)");
+}
+
+
     }, []);
 
     const signOut = useCallback(async () => {

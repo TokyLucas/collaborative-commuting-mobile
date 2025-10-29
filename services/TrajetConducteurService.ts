@@ -31,6 +31,15 @@ export default class TrajetConducteurService {
         });
         return response;
     }
+    
+    public static async getAllView(token: string): Promise<any> {
+        return fetch(`${this.API_URL}/api/trajetC/getAll`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+    }
     public static async updateTrajet(id: string, dto: any, token: string): Promise<any> {
     return fetch(`${this.API_URL}/api/trajetC/${id}`, {
         method: 'PUT',
@@ -49,6 +58,16 @@ public static async getByConducteurId(conducteurId: string, token: string): Prom
         },
     });
 }
+
+public static async getByIdView(id: string, token: string): Promise<any> {
+  return fetch(`${this.API_URL}/api/trajetC/getOne/${id}`, {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+}
+
 
 
 }

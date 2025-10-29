@@ -1,3 +1,4 @@
+
 export interface TrajetConducteur {
     id: string;
     idConducteur: string;
@@ -11,5 +12,6 @@ export interface TrajetConducteur {
     placesDisponibles: number;
     description: string;
     statut: string;
-    actif: number
+    actif: number;
+    voitureId: string;
 }
