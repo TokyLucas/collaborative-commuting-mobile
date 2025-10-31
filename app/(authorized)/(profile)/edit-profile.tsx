@@ -409,7 +409,7 @@ export default function EditProfileScreen() {
                                 </>
                             )}
                         </Button>
-                        <Button action="secondary" className="w-100" size="sm" onPress={() => router.replace('/profile')}>
+                        <Button action="secondary" className="w-100" size="sm" onPress={() => router.replace('/(authorized)/(profile)/profile')}>
                             <ButtonText>Retour vers profile</ButtonText>
                         </Button>
                     </VStack>
@@ -432,7 +432,7 @@ export default function EditProfileScreen() {
                                 <Button
                                     action="positive"
                                     className="w-full"
-                                    onPress={() => router.replace('/profile')}
+                                    onPress={() => router.replace('/(authorized)/(profile)/profile')}
                                 >
                                     <ButtonText>Retour vers profile</ButtonText>
                                 </Button>

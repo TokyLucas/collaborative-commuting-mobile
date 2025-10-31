@@ -8,7 +8,7 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuthSession } from '@/providers/AuthProvider';
 import UserService from "@/services/UserService";
-import { Home, Map } from 'lucide-react-native';
+import { Home } from 'lucide-react-native';
 
 export default function TabLayout1() {
     const { token, user } = useAuthSession()
@@ -23,7 +23,7 @@ export default function TabLayout1() {
             })
             .then((data) => {
                 user_data = data;
-                if (user_data?.type == "PASSAGER") router.replace('/(authorized)/passager');
+                if (user_data?.type == "CONDUCTEUR") router.replace('/(authorized)/cond');
             });
     }
     return (
@@ -49,13 +49,6 @@ export default function TabLayout1() {
                 options={{
                     title: 'Accueil',
                     tabBarIcon: ({ color }) => <Home color={color} size={24} />
-                }}
-            />
-            <Tabs.Screen
-                name="demande"
-                options={{
-                    title: 'Demande',
-                    tabBarIcon: ({ color }) => <Map color={color} size={24} />
                 }}
             />
         </Tabs>

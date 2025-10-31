@@ -21,9 +21,15 @@
       },
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "pan",
-      "package": "com.anonymous.collaborativecommutingmobile"
+      "package": "com.anonymous.collaborativecommutingmobile",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS",
+        "ACCESS_NETWORK_STATE",
+        "INTERNET"
+      ]
     },
-
     "web": {
       "bundler": "metro",
       "output": "static",
@@ -44,6 +50,13 @@
         "expo-image-picker",
         {
           "photosPermission": "Need access to your photos to upload images."
+        }
+      ],
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera",
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone"
         }
       ]
     ],
