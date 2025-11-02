@@ -34,7 +34,7 @@ export default function ExploreScreen() {
   const [loading, setLoading] = useState(true);
   const [initializing, setInitializing] = useState(true);
 
-  // 1. Centrage initial + mémorisation de userLocation
+  //Centrage initial + mémorisation de userLocation
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -67,7 +67,7 @@ export default function ExploreScreen() {
     })();
   }, []);
 
-  // 2. Chargement des marqueurs après le centrage initial
+  //Chargement des marqueurs après le centrage initial
   useEffect(() => {
     if (initializing || !token?.current) return;
     setLoading(true);
