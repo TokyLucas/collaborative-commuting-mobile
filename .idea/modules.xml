@@ -2,7 +2,29 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/android.iml" filepath="$PROJECT_DIR$/.idea/modules/android.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/lib/android.lib.iml" filepath="$PROJECT_DIR$/.idea/modules/lib/android.lib.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/collaborative-commuting-mobile.iml" filepath="$PROJECT_DIR$/.idea/collaborative-commuting-mobile.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/expo-gradle-plugin.iml" filepath="$PROJECT_DIR$/.idea/modules/expo-gradle-plugin.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/expo-autolinking-plugin/expo-gradle-plugin.expo-autolinking-plugin.iml" filepath="$PROJECT_DIR$/.idea/modules/expo-autolinking-plugin/expo-gradle-plugin.expo-autolinking-plugin.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/expo-autolinking-plugin-shared/expo-gradle-plugin.expo-autolinking-plugin-shared.iml" filepath="$PROJECT_DIR$/.idea/modules/expo-autolinking-plugin-shared/expo-gradle-plugin.expo-autolinking-plugin-shared.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/expo-autolinking-plugin-shared/expo-gradle-plugin.expo-autolinking-plugin-shared.main.iml" filepath="$PROJECT_DIR$/.idea/modules/expo-autolinking-plugin-shared/expo-gradle-plugin.expo-autolinking-plugin-shared.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/expo-autolinking-plugin-shared/expo-gradle-plugin.expo-autolinking-plugin-shared.test.iml" filepath="$PROJECT_DIR$/.idea/modules/expo-autolinking-plugin-shared/expo-gradle-plugin.expo-autolinking-plugin-shared.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/expo-autolinking-plugin/expo-gradle-plugin.expo-autolinking-plugin.main.iml" filepath="$PROJECT_DIR$/.idea/modules/expo-autolinking-plugin/expo-gradle-plugin.expo-autolinking-plugin.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/expo-autolinking-plugin/expo-gradle-plugin.expo-autolinking-plugin.test.iml" filepath="$PROJECT_DIR$/.idea/modules/expo-autolinking-plugin/expo-gradle-plugin.expo-autolinking-plugin.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/expo-autolinking-settings-plugin/expo-gradle-plugin.expo-autolinking-settings-plugin.iml" filepath="$PROJECT_DIR$/.idea/modules/expo-autolinking-settings-plugin/expo-gradle-plugin.expo-autolinking-settings-plugin.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/expo-autolinking-settings-plugin/expo-gradle-plugin.expo-autolinking-settings-plugin.main.iml" filepath="$PROJECT_DIR$/.idea/modules/expo-autolinking-settings-plugin/expo-gradle-plugin.expo-autolinking-settings-plugin.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/expo-autolinking-settings-plugin/expo-gradle-plugin.expo-autolinking-settings-plugin.test.iml" filepath="$PROJECT_DIR$/.idea/modules/expo-autolinking-settings-plugin/expo-gradle-plugin.expo-autolinking-settings-plugin.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/expo-gradle-plugin.main.iml" filepath="$PROJECT_DIR$/.idea/modules/expo-gradle-plugin.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/expo-gradle-plugin.test.iml" filepath="$PROJECT_DIR$/.idea/modules/expo-gradle-plugin.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/react-native-edge-to-edge.android.iml" filepath="$PROJECT_DIR$/.idea/modules/react-native-edge-to-edge.android.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/react-native-edge-to-edge.android.androidTest.iml" filepath="$PROJECT_DIR$/.idea/modules/react-native-edge-to-edge.android.androidTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/react-native-edge-to-edge.android.main.iml" filepath="$PROJECT_DIR$/.idea/modules/react-native-edge-to-edge.android.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/react-native-edge-to-edge.android.unitTest.iml" filepath="$PROJECT_DIR$/.idea/modules/react-native-edge-to-edge.android.unitTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/react-native-reanimated.android.iml" filepath="$PROJECT_DIR$/.idea/modules/react-native-reanimated.android.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/react-native-reanimated.android.androidTest.iml" filepath="$PROJECT_DIR$/.idea/modules/react-native-reanimated.android.androidTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/react-native-reanimated.android.main.iml" filepath="$PROJECT_DIR$/.idea/modules/react-native-reanimated.android.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/react-native-reanimated.android.unitTest.iml" filepath="$PROJECT_DIR$/.idea/modules/react-native-reanimated.android.unitTest.iml" />
     </modules>
   </component>
 </project>
