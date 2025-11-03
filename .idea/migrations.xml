@@ -3,8 +3,10 @@
   <component name="ProjectMigrations">
     <option name="MigrateToGradleLocalJavaHome">
       <set>
-        <option value="$PROJECT_DIR$/node_modules/react-native-safe-area-context/android" />
+        <option value="$PROJECT_DIR$/node_modules/@react-native/gradle-plugin" />
         <option value="$PROJECT_DIR$/node_modules/expo-modules-autolinking/android/expo-gradle-plugin" />
+        <option value="$PROJECT_DIR$/node_modules/react-native-safe-area-context/android" />
+        <option value="$PROJECT_DIR$/node_modules/expo-modules-core/expo-module-gradle-plugin" />
         <option value="$PROJECT_DIR$/node_modules/react-native-reanimated/android" />
         <option value="$PROJECT_DIR$/node_modules/react-native-edge-to-edge/android" />
       </set>

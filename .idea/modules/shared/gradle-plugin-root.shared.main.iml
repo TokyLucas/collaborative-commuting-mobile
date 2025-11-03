@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module external.linked.project.id=":shared:main" external.linked.project.path="$MODULE_DIR$/../../../node_modules/@react-native/gradle-plugin/shared" external.root.project.path="$MODULE_DIR$/../../../node_modules/@react-native/gradle-plugin" external.system.id="GRADLE" external.system.module.group="com.facebook.react" external.system.module.type="sourceSet" external.system.module.version="unspecified" type="JAVA_MODULE" version="4">
+  <component name="FacetManager">
+    <facet external-system-id="GRADLE" type="kotlin-language" name="Kotlin">
+      <configuration version="5" platform="JVM 11" allPlatforms="JVM [11]" useProjectSettings="false" pureKotlinSourceFolders="C:\PERSO\ITU_M2\TPI\collaborative-commuting-mobile\node_modules\@react-native\gradle-plugin\shared\src\test\kotlin;C:\PERSO\ITU_M2\TPI\collaborative-commuting-mobile\node_modules\@react-native\gradle-plugin\shared\src\main\kotlin">
+        <compilerSettings />
+        <compilerArguments>
+          <flagArguments>
+            <flagArg name="allowNoSourceFiles" arg="true" />
+            <flagArg name="noReflect" arg="true" />
+            <flagArg name="noStdlib" arg="true" />
+          </flagArguments>
+          <stringArguments>
+            <stringArg name="destination" arg="$MODULE_DIR$/../../../node_modules/@react-native/gradle-plugin/shared/build/classes/kotlin/main" />
+            <stringArg name="jvmTarget" arg="11" />
+            <stringArg name="moduleName" arg="shared" />
+            <stringArg name="apiVersion" arg="1.7" />
+            <stringArg name="languageVersion" arg="2.0" />
+          </stringArguments>
+          <arrayArguments>
+            <arrayArg name="pluginClasspaths">
+              <args>
+                <arg>$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-jvm/2.0.21/939d8b644308f8d97c60317df76ee40299475831/kotlin-scripting-jvm-2.0.21.jar</arg>
+                <arg>$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-scripting-common/2.0.21/2aeb50e2df2ef94f6b90b7ab2c56d5e18d3687c1/kotlin-scripting-common-2.0.21.jar</arg>
+                <arg>$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/2.0.21/618b539767b4899b4660a83006e052b63f1db551/kotlin-stdlib-2.0.21.jar</arg>
+                <arg>$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar</arg>
+                <arg>$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-script-runtime/2.0.21/c9b044380ad41f89aa89aa896c2d32a8c0b2129d/kotlin-script-runtime-2.0.21.jar</arg>
+              </args>
+            </arrayArg>
+            <arrayArg name="pluginOptions" />
+          </arrayArguments>
+        </compilerArguments>
+      </configuration>
+    </facet>
+  </component>
+  <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_17">
+    <output url="file://$MODULE_DIR$/../../../node_modules/@react-native/gradle-plugin/shared/build/classes/kotlin/main" />
+    <exclude-output />
+    <content url="file://$MODULE_DIR$/../../../node_modules/@react-native/gradle-plugin/shared/src/main">
+      <sourceFolder url="file://$MODULE_DIR$/../../../node_modules/@react-native/gradle-plugin/shared/src/main/kotlin" isTestSource="false" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib:2.0.21" level="project" />
+    <orderEntry type="library" name="Gradle: com.google.code.gson:gson:2.8.9" level="project" />
+    <orderEntry type="library" name="Gradle: com.google.guava:guava:31.0.1-jre" level="project" />
+    <orderEntry type="library" name="Gradle: org.jetbrains:annotations:13.0" level="project" />
+    <orderEntry type="library" name="Gradle: com.google.guava:failureaccess:1.0.1" level="project" />
+    <orderEntry type="library" name="Gradle: com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava" level="project" />
+    <orderEntry type="library" name="Gradle: com.google.code.findbugs:jsr305:3.0.2" level="project" />
+    <orderEntry type="library" name="Gradle: org.checkerframework:checker-qual:3.12.0" level="project" />
+    <orderEntry type="library" name="Gradle: com.google.errorprone:error_prone_annotations:2.7.1" level="project" />
+    <orderEntry type="library" name="Gradle: com.google.j2objc:j2objc-annotations:1.3" level="project" />
+  </component>
+</module>
