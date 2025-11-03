@@ -184,7 +184,7 @@
       <GradleProjectSettings>
         <option name="testRunner" value="CHOOSE_PER_TEST" />
         <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/react-native-svg/android" />
-        <option name="gradleJvm" value="jbr-21" />
+        <option name="gradleJvm" value="21" />
       </GradleProjectSettings>
       <GradleProjectSettings>
         <option name="testRunner" value="CHOOSE_PER_TEST" />
