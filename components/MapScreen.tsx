@@ -1,11 +1,19 @@
+import React, { useEffect, useState, useRef } from 'react';
+import { StyleSheet, View, ActivityIndicator } from 'react-native';
+import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { WebView } from 'react-native-webview';
-import { Disponibilite, fetchNearbyDisponibilites } from '../services/disponibiliteService';
+import {
+  fetchNearbyDisponibilites,
+  Disponibilite,
+} from '../services/disponibiliteService';
 
 export default function MapScreen() {
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const mapRef = useRef<MapView>(null);
+  const [region, setRegion] = useState<Region | null>(null);
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [markers, setMarkers] = useState<Disponibilite[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -18,16 +26,33 @@ export default function MapScreen() {
         return;
       }
 
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
-      setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Highest,
+      });
+      const initRegion: Region = {
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      };
 
-      const nearby = await fetchNearbyDisponibilites(loc.coords.latitude, loc.coords.longitude);
+      setRegion(initRegion);
+      setUserLocation({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      });
+      mapRef.current?.animateToRegion(initRegion, 1000);
+
+      const nearby = await fetchNearbyDisponibilites(
+        loc.coords.latitude,
+        loc.coords.longitude
+      );
       setMarkers(nearby);
       setLoading(false);
     })();
   }, []);
 
-  if (loading || !userLocation) {
+  if (loading || !region) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="large" />
@@ -35,35 +60,44 @@ export default function MapScreen() {
     );
   }
 
-  const leafletHTML = `
-    <html>
-      <head>
-        <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-        <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-        <style> #map { height: 100%; width: 100%; margin:0; padding:0; } body { margin:0; } </style>
-      </head>
-      <body>
-        <div id="map"></div>
-        <script>
-          var map = L.map('map').setView([${userLocation.latitude}, ${userLocation.longitude}], 13);
-          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+  return (
+    <MapView
+      ref={mapRef}
+      style={styles.map}
+      region={region}
+      showsUserLocation={false}
+      onRegionDragComplete={newRegion => {
+        setRegion(newRegion);
+        fetchNearbyDisponibilites(newRegion.latitude, newRegion.longitude).then(setMarkers);
+      }}
+    >
+      {/* Marqueur utilisateur */}
+      {userLocation && (
+        <Marker
+          coordinate={userLocation}
+          title="Vous"
+          pinColor="blue"
+        />
+      )}
 
-          // Marqueur utilisateur
-          L.marker([${userLocation.latitude}, ${userLocation.longitude}], {title: "Vous"}).addTo(map);
-
-          // Marqueurs dynamiques
-          ${markers.map(m => {
-            const [lng, lat] = m.position.coordinates;
-            return `L.marker([${lat}, ${lng}], {title: "ID: ${m.conducteurId}"}).addTo(map).bindPopup("${m.statut}");`;
-          }).join('\n')}
-        </script>
-      </body>
-    </html>
-  `;
-
-  return <WebView originWhitelist={['*']} source={{ html: leafletHTML }} style={{ flex: 1 }} />;
+      {/* Autres marqueurs */}
+      {markers.map(m => {
+        const [lng, lat] = m.position.coordinates;
+        return (
+          <Marker
+            key={m.id}
+            coordinate={{ latitude: lat, longitude: lng }}
+            pinColor={m.statut === 'AVAILABLE' ? 'green' : 'red'}
+            title={`ID: ${m.conducteurId}`}
+            description={m.statut}
+          />
+        );
+      })}
+    </MapView>
+  );
 }
 
 const styles = StyleSheet.create({
+  map: { flex: 1 },
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });
