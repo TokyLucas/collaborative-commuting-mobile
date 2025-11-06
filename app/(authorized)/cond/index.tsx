@@ -3,10 +3,12 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
+  Modal,
   RefreshControl,
   SafeAreaView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -26,13 +28,16 @@ export default function AccueilScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [showPlacesModal, setShowPlacesModal] = useState(false);
+  const [placesInput, setPlacesInput] = useState("");
+  const [currentTrajetId, setCurrentTrajetId] = useState<string | null>(null);
+
+  // ——— récupérer la liste des trajets ———
   const fetchTrajets = useCallback(async () => {
     try {
       const token = await SecureStore.getItemAsync("userToken");
-      if (!token) {
-        console.error("Token manquant");
-        return;
-      }
+      if (!token) return;
+
       const response = await TrajetConducteurService.getAllView(token);
       const data = await response.json();
 
@@ -41,8 +46,18 @@ export default function AccueilScreen() {
         return;
       }
 
-      // On n’affiche que les trajets actifs
-      setTrajets((Array.isArray(data) ? data : []).filter((t: TrajetVoiture) => t.actif === 1));
+      // filtrage logique : seulement trajets actifs et non désactivés temporairement
+      const today = new Date();
+      const trajetsFiltres = (Array.isArray(data) ? data : []).filter((t: TrajetVoiture) => {
+        const actif = t.actif === 1 || t.actif === null;
+        const debut = t.dateDesactivationDebut ? new Date(t.dateDesactivationDebut) : null;
+        const fin = t.dateDesactivationFin ? new Date(t.dateDesactivationFin) : null;
+        const desactiveTemporaire =
+          debut && fin && today >= debut && today <= fin;
+        return actif && !desactiveTemporaire;
+      });
+
+      setTrajets(trajetsFiltres);
     } catch (e) {
       console.error("Erreur API:", e);
     }
@@ -73,19 +88,18 @@ export default function AccueilScreen() {
     setDetailModalVisible(false);
   };
 
-  const changerStatut = async (id: string, nouveauStatut: string) => {
+  // ——— Changer statut ———
+  const changerStatut = async (id: string, nouveauStatut: string, placesDispoJournalier?: number) => {
     try {
       const token = await SecureStore.getItemAsync("userToken");
-      if (!token) {
-        console.error("Token manquant");
-        return;
-      }
-      const dto = { statut: nouveauStatut };
-      const response = await TrajetConducteurService.updateTrajet(id, dto, token);
+      if (!token) return;
 
+      const dto: any = { statut: nouveauStatut };
+      if (placesDispoJournalier != null) dto.placesDispoJournalier = placesDispoJournalier;
+
+      const response = await TrajetConducteurService.updateTrajet(id, dto, token);
       if (!response.ok) {
         const data = await response.json();
-        console.error("Erreur MAJ statut:", data?.message || "Erreur inconnue");
         Alert.alert("Erreur", data?.message || "Impossible de mettre à jour le statut.");
         return;
       }
@@ -95,19 +109,15 @@ export default function AccueilScreen() {
     }
   };
 
+  // ——— Désactivation ———
   const desactiverTrajet = async (id: string) => {
     try {
       const token = await SecureStore.getItemAsync("userToken");
-      if (!token) {
-        console.error("Token manquant");
-        return;
-      }
+      if (!token) return;
       const dto = { actif: 0 };
       const response = await TrajetConducteurService.updateTrajet(id, dto, token);
-
       if (!response.ok) {
         const data = await response.json();
-        console.error("Erreur désactivation:", data?.message || "Erreur inconnue");
         Alert.alert("Erreur", data?.message || "Impossible de désactiver ce trajet.");
         return;
       }
@@ -115,6 +125,25 @@ export default function AccueilScreen() {
     } catch (e) {
       console.error("Erreur désactivation:", e);
     }
+  };
+
+  // ——— Démarrage (ouvrir le modal de saisie places du jour) ———
+  const openPlacesModal = (trajetId: string) => {
+    setCurrentTrajetId(trajetId);
+    setPlacesInput("");
+    setShowPlacesModal(true);
+  };
+
+  const confirmPlaces = async () => {
+    if (!currentTrajetId) return;
+    const nb = parseInt(placesInput);
+    if (isNaN(nb) || nb <= 0) {
+      Alert.alert("Erreur", "Nombre invalide.");
+      return;
+    }
+    setShowPlacesModal(false);
+    await changerStatut(currentTrajetId, "En route", nb);
+    setCurrentTrajetId(null);
   };
 
   // ——— vues "Ajout" et "Update" ———
@@ -171,8 +200,15 @@ export default function AccueilScreen() {
               ? `${item.car.brand} ${item.car.model} ${item.car.color ? `(${item.car.color})` : ""}`.trim()
               : "—";
 
+            const isDisabled =
+              item.actif === 0 ||
+              (item.dateDesactivationDebut &&
+                item.dateDesactivationFin &&
+                new Date() >= new Date(item.dateDesactivationDebut) &&
+                new Date() <= new Date(item.dateDesactivationFin));
+
             return (
-              <View style={styles.card}>
+              <View style={[styles.card, isDisabled && { opacity: 0.5 }]}>
                 <Text style={styles.cardTitle}>
                   {item.pointDepart} → {item.pointArrivee}
                 </Text>
@@ -182,10 +218,10 @@ export default function AccueilScreen() {
                 <Text style={{ marginTop: 6 }}>Véhicule : {vehiculeLabel}</Text>
 
                 <View style={styles.actionRow}>
-                  {item.statut === "Prévu" && (
+                  {!isDisabled && item.statut === "Prévu" && (
                     <TouchableOpacity
                       style={styles.iconBtn}
-                      onPress={() => changerStatut(item.id, "En route")}
+                      onPress={() => openPlacesModal(item.id)}
                     >
                       <Text style={styles.icon}>🟢</Text>
                     </TouchableOpacity>
@@ -198,7 +234,7 @@ export default function AccueilScreen() {
                     <Text style={styles.icon}>🔍</Text>
                   </TouchableOpacity>
 
-                  {item.statut !== "Terminé" && (
+                  {!isDisabled && item.statut !== "Terminé" && (
                     <>
                       <TouchableOpacity
                         style={styles.iconBtn}
@@ -215,7 +251,7 @@ export default function AccueilScreen() {
                     </>
                   )}
 
-                  {item.statut === "En route" && (
+                  {item.statut === "En route" && !isDisabled && (
                     <TouchableOpacity
                       style={styles.iconBtn}
                       onPress={() => changerStatut(item.id, "Terminé")}
@@ -229,6 +265,33 @@ export default function AccueilScreen() {
           }}
           ListEmptyComponent={<Text style={styles.empty}>Aucun trajet disponible.</Text>}
         />
+
+        {/* Modal pour définir les places disponibles du jour */}
+        <Modal visible={showPlacesModal} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>Places disponibles aujourd’hui</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex : 3"
+                keyboardType="numeric"
+                value={placesInput}
+                onChangeText={setPlacesInput}
+              />
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <TouchableOpacity style={[styles.btn, { flex: 1 }]} onPress={confirmPlaces}>
+                  <Text style={styles.btnText}>Confirmer</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.btn, styles.cancel, { flex: 1 }]}
+                  onPress={() => setShowPlacesModal(false)}
+                >
+                  <Text style={styles.btnText}>Annuler</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         <TrajetDetailModal
           visible={detailModalVisible}
@@ -276,4 +339,34 @@ const styles = StyleSheet.create({
   card: { backgroundColor: "#fff", padding: 16, marginVertical: 6, borderRadius: 8 },
   cardTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 4 },
   empty: { textAlign: "center", color: "#888", fontStyle: "italic", marginTop: 20 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalBox: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+    width: "80%",
+    elevation: 6,
+  },
+  modalTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 12, textAlign: "center" },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 10,
+    textAlign: "center",
+    marginBottom: 14,
+  },
+  btn: {
+    backgroundColor: "#4A90E2",
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  btnText: { color: "#fff", fontWeight: "600" },
+  cancel: { backgroundColor: "#999" },
 });
