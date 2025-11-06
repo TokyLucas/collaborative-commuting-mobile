@@ -1,4 +1,3 @@
-
 import { useAuthSession } from "@/providers/AuthProvider";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Picker } from "@react-native-picker/picker";
@@ -52,19 +51,21 @@ export default function TrajetAjoutScreen({ onCancel, onSuccess }: Props) {
   const [mapArriveeVisible, setMapArriveeVisible] = useState(false);
 
   const [cars, setCars] = useState<Car[]>([]);
-  const [selectedCarId, setSelectedCarId] = useState<string>(""); // on garde seulement l'id
+  const [selectedCarId, setSelectedCarId] = useState<string>("");
   const [loadingCars, setLoadingCars] = useState<boolean>(false);
+
+  const [jours, setJours] = useState<number[]>([]); // 1=Lundi ... 7=Dimanche
 
   const pinRed = require("../assets/images/pin-red.png");
 
   const [form, setForm] = useState<{
     pointDepart: string;
-    latDepart: string; // string dans l'UI, converti en number au submit
+    latDepart: string;
     lngDepart: string;
     pointArrivee: string;
     latArrivee: string;
     lngArrivee: string;
-    heureDepartEstimee: Date; // UI sous forme Date, envoyée en ISO string
+    heureDepartEstimee: Date;
     placesDisponibles: string;
     description: string;
     statut: string;
@@ -81,7 +82,7 @@ export default function TrajetAjoutScreen({ onCancel, onSuccess }: Props) {
     statut: "Prévu",
   });
 
-  // Charger les voitures de l'utilisateur
+  // Charger les voitures
   useEffect(() => {
     (async () => {
       try {
@@ -92,7 +93,6 @@ export default function TrajetAjoutScreen({ onCancel, onSuccess }: Props) {
 
         const list = await CarService.getUserCars(userId, token);
         setCars(list || []);
-        // Pré-sélectionner la première voiture si dispo
         if (list?.length) setSelectedCarId(list[0].id);
       } catch (e) {
         console.error(e);
@@ -139,6 +139,7 @@ export default function TrajetAjoutScreen({ onCancel, onSuccess }: Props) {
         Alert.alert("Champs requis", "Renseignez un nombre de places valide.");
         return;
       }
+
       const payload: Omit<TrajetConducteur, "id"> = {
         idConducteur: String(idConducteurC),
         pointDepart: form.pointDepart.trim(),
@@ -147,12 +148,13 @@ export default function TrajetAjoutScreen({ onCancel, onSuccess }: Props) {
         pointArrivee: form.pointArrivee.trim(),
         latArrivee,
         lngArrivee,
-        heureDepartEstimee: form.heureDepartEstimee.toISOString(), // string ISO
+        heureDepartEstimee: form.heureDepartEstimee.toISOString(),
         placesDisponibles,
         description: form.description.trim(),
         statut: form.statut,
         actif: 1,
-        voitureId: selectedCarId ,
+        voitureId: selectedCarId,
+        jours: jours.length ? jours : null,
       };
 
       const response = await TrajetConducteurService.createTrajet(payload, token);
@@ -173,7 +175,7 @@ export default function TrajetAjoutScreen({ onCancel, onSuccess }: Props) {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#fff" }}>
-      {/* Header simple */}
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Nouveau trajet</Text>
         <TouchableOpacity onPress={onCancel}>
@@ -182,7 +184,7 @@ export default function TrajetAjoutScreen({ onCancel, onSuccess }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
-        {/* Sélecteur de voiture */}
+        {/* Voiture */}
         <View style={styles.box}>
           <Text style={styles.boxLabel}>Voiture</Text>
           <View style={styles.pickerBoxInner}>
@@ -221,8 +223,6 @@ export default function TrajetAjoutScreen({ onCancel, onSuccess }: Props) {
             <TouchableOpacity
               style={styles.iconBtn}
               onPress={() => setMapDepartVisible(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Choisir le point de départ sur la carte"
             >
               <Image source={pinRed} style={styles.pinIcon} />
             </TouchableOpacity>
@@ -244,8 +244,6 @@ export default function TrajetAjoutScreen({ onCancel, onSuccess }: Props) {
             <TouchableOpacity
               style={styles.iconBtn}
               onPress={() => setMapArriveeVisible(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Choisir le point d’arrivée sur la carte"
             >
               <Image source={pinRed} style={styles.pinIcon} />
             </TouchableOpacity>
@@ -290,6 +288,39 @@ export default function TrajetAjoutScreen({ onCancel, onSuccess }: Props) {
               placeholder="Ex : 3"
             />
           </View>
+        </View>
+
+        {/* Sélecteur de jours */}
+        <Text style={[styles.boxLabel, { marginBottom: 6 }]}>Jours de trajet</Text>
+        <View style={{ flexDirection: "row", justifyContent: "center", gap: 6, marginBottom: 12 }}>
+          {["L", "M", "M", "J", "V", "S", "D"].map((label, i) => {
+            const index = i + 1;
+            const selected = jours.includes(index);
+            return (
+              <TouchableOpacity
+                key={index}
+                onPress={() =>
+                  setJours((prev) =>
+                    prev.includes(index)
+                      ? prev.filter((j) => j !== index)
+                      : [...prev, index]
+                  )
+                }
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: selected ? "#A3E635" : "#E5E7EB",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ color: selected ? "#000" : "#666", fontWeight: "600" }}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Description */}
@@ -344,7 +375,6 @@ export default function TrajetAjoutScreen({ onCancel, onSuccess }: Props) {
 }
 
 const styles = StyleSheet.create({
-  // Header
   header: {
     padding: 16,
     flexDirection: "row",
@@ -353,11 +383,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 18, fontWeight: "bold" },
 
-  // Layout
   rowWrap: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 12 },
   half: { flexBasis: "48%", flexGrow: 1, minWidth: 160 },
 
-  // Cadres
   box: {
     borderWidth: 1,
     borderColor: "#E5E7EB",
@@ -377,7 +405,6 @@ const styles = StyleSheet.create({
   boxInput: { flex: 1, fontSize: 16, paddingVertical: 8 },
   pickerBoxInner: { paddingHorizontal: 6, paddingBottom: 4 },
 
-  // Boutons
   btn: {
     backgroundColor: "#4A90E2",
     paddingVertical: 12,
@@ -390,10 +417,8 @@ const styles = StyleSheet.create({
   btnText: { color: "#fff", fontWeight: "600" },
   cancel: { backgroundColor: "#999" },
 
-  // Infos
   helper: { marginTop: 6, color: "#444" },
 
-  // Icône
   iconBtn: {
     paddingVertical: 6,
     paddingHorizontal: 8,
