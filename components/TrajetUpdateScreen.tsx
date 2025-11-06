@@ -10,7 +10,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { Car } from "../models/Car";
 import { TrajetConducteur } from "../models/TrajetConducteur";
@@ -42,10 +42,14 @@ function FieldBox({ label, rightAdornment, style, ...inputProps }: FieldBoxProps
 
 export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Props) {
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showDateStart, setShowDateStart] = useState(false);
+  const [showDateEnd, setShowDateEnd] = useState(false);
   const [mapDepartVisible, setMapDepartVisible] = useState(false);
   const [mapArriveeVisible, setMapArriveeVisible] = useState(false);
   const [cars, setCars] = useState<Car[]>([]);
   const [selectedCarId, setSelectedCarId] = useState("");
+  const [desactivePermanent, setDesactivePermanent] = useState(false);
+  const [jours, setJours] = useState<number[]>([]); // 1=Lundi ... 7=Dimanche
 
   const pinRed = require("../assets/images/pin-red.png");
 
@@ -61,6 +65,9 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
     placesDisponibles: "",
     description: "",
     statut: "",
+    dateDesactivationDebut: null as Date | null,
+    dateDesactivationFin: null as Date | null,
+    actif: 1,
   });
 
   // Charger trajet + voitures utilisateur
@@ -69,10 +76,12 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
       const token = await SecureStore.getItemAsync("userToken");
       if (!token || !trajetId) return;
 
-      // Récupération du trajet
       const res = await TrajetConducteurService.getById(trajetId, token);
       const data = await res.json();
-      if (!res.ok) { Alert.alert("Erreur", data?.message || "Chargement impossible"); return; }
+      if (!res.ok) {
+        Alert.alert("Erreur", data?.message || "Chargement impossible");
+        return;
+      }
 
       setForm({
         id: data.id || trajetId,
@@ -86,8 +95,14 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
         placesDisponibles: String(data.placesDisponibles ?? ""),
         description: data.description || "",
         statut: data.statut || "Prévu",
+        dateDesactivationDebut: data.dateDesactivationDebut ? new Date(data.dateDesactivationDebut) : null,
+        dateDesactivationFin: data.dateDesactivationFin ? new Date(data.dateDesactivationFin) : null,
+        actif: data.actif ?? 1,
       });
-      setSelectedCarId(data.voitureId || ""); // backend doit renvoyer voitureId
+
+      setDesactivePermanent(data.actif === 0);
+      setJours(data.jours || []); // pré-cochage des jours
+      setSelectedCarId(data.voitureId || "");
 
       // Récupération voitures utilisateur
       const userId = data.idConducteur;
@@ -118,7 +133,7 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
       }
 
       const dto: Omit<TrajetConducteur, "id"> & { voitureId: string } = {
-        idConducteur: "", // le backend garde l’existant
+        idConducteur: "",
         pointDepart: form.pointDepart.trim(),
         latDepart, lngDepart,
         pointArrivee: form.pointArrivee.trim(),
@@ -127,13 +142,23 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
         placesDisponibles,
         description: form.description.trim(),
         statut: form.statut || "Prévu",
-        actif: 1,
+        actif: desactivePermanent ? 0 : 1,
         voitureId: selectedCarId,
+        jours: jours.length ? jours : null,
+        dateDesactivationDebut: form.dateDesactivationDebut
+          ? form.dateDesactivationDebut.toISOString().split("T")[0]
+          : null,
+        dateDesactivationFin: form.dateDesactivationFin
+          ? form.dateDesactivationFin.toISOString().split("T")[0]
+          : null,
       } as any;
 
       const response = await TrajetConducteurService.updateTrajet(form.id, dto, token);
       const result = await response.json();
-      if (!response.ok) { Alert.alert("Erreur", result?.message || "Échec mise à jour"); return; }
+      if (!response.ok) {
+        Alert.alert("Erreur", result?.message || "Échec mise à jour");
+        return;
+      }
 
       Alert.alert("Succès", "Trajet mis à jour !");
       onSuccess();
@@ -151,13 +176,10 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
-        {/* Sélecteur voiture */}
+        {/* Voiture */}
         <View style={styles.box}>
           <Text style={styles.boxLabel}>Voiture</Text>
-          <Picker
-            selectedValue={selectedCarId}
-            onValueChange={(val) => setSelectedCarId(val)}
-          >
+          <Picker selectedValue={selectedCarId} onValueChange={(val) => setSelectedCarId(val)}>
             {cars.map((c) => (
               <Picker.Item
                 key={c.id}
@@ -233,6 +255,38 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
           </View>
         </View>
 
+        {/* Sélecteur de jours */}
+        <Text style={[styles.boxLabel, { marginTop: 10 }]}>Jours de trajet</Text>
+        <View style={{ flexDirection: "row", justifyContent: "center", gap: 6, marginBottom: 12 }}>
+          {["L", "M", "M", "J", "V", "S", "D"].map((label, i) => {
+            const index = i + 1;
+            const selected = jours.includes(index);
+            return (
+              <TouchableOpacity
+                key={index}
+                onPress={() =>
+                  setJours((prev) =>
+                    prev.includes(index)
+                      ? prev.filter((j) => j !== index)
+                      : [...prev, index]
+                  )
+                }
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: selected ? "#A3E635" : "#E5E7EB",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ color: selected ? "#000" : "#666", fontWeight: "600" }}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Description */}
         <FieldBox
           label="Description"
           value={form.description}
@@ -241,6 +295,53 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
           multiline
         />
 
+        {/* Désactivation */}
+        <Text style={[styles.boxLabel, { marginTop: 10 }]}>Désactivation</Text>
+        <View style={styles.box}>
+          <TouchableOpacity onPress={() => setDesactivePermanent(!desactivePermanent)}>
+            <Text style={{ padding: 10 }}>
+              {desactivePermanent ? "🔴 Désactivation permanente (actif=0)" : "🟢 Actif (actif=1)"}
+            </Text>
+          </TouchableOpacity>
+
+          {!desactivePermanent && (
+            <View style={{ padding: 10 }}>
+              <TouchableOpacity onPress={() => setShowDateStart(true)}>
+                <Text>
+                  Début: {form.dateDesactivationDebut ? form.dateDesactivationDebut.toLocaleDateString() : "non défini"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowDateEnd(true)}>
+                <Text>
+                  Fin: {form.dateDesactivationFin ? form.dateDesactivationFin.toLocaleDateString() : "non défini"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {showDateStart && (
+          <DateTimePicker
+            value={form.dateDesactivationDebut || new Date()}
+            mode="date"
+            onChange={(_, date) => {
+              setShowDateStart(false);
+              if (date) setForm({ ...form, dateDesactivationDebut: date });
+            }}
+          />
+        )}
+        {showDateEnd && (
+          <DateTimePicker
+            value={form.dateDesactivationFin || new Date()}
+            mode="date"
+            onChange={(_, date) => {
+              setShowDateEnd(false);
+              if (date) setForm({ ...form, dateDesactivationFin: date });
+            }}
+          />
+        )}
+
+        {/* Actions */}
         <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
           <TouchableOpacity onPress={handleUpdate} style={[styles.btn, { flex: 1 }]}>
             <Text style={styles.btnText}>Modifier</Text>
