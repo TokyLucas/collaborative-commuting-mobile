@@ -3,10 +3,10 @@ import { useAuthSession } from '@/providers/AuthProvider'
 import { Ionicons } from '@expo/vector-icons'
 import * as Location from 'expo-location'
 import React, { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, Dimensions, StyleSheet, Text, TouchableOpacity } from 'react-native'
 import { WebView } from 'react-native-webview'
 import CarService from '../../../services/CarService'
-import { PokeChannel } from '../../../services/PokeChannel'
+import LocationChannel from '../../../services/LocationChannel'
 import TrajetConducteurService from '../../../services/TrajetConducteurService'
 
 
@@ -37,9 +37,14 @@ export default function ExploreScreen() {
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null)
   const [markers, setMarkers] = useState<Marker[]>([])
   const [loading, setLoading] = useState(true)
-  const [pokeChannel, setPokeChannel] = useState<PokeChannel | null>(null)
   const [showPopup, setShowPopup] = useState(false)
-  const [pokeRequest, setPokeRequest] = useState<PokeRequest | null>(null)
+  const channel = LocationChannel()
+  const [disponibilite, setDisponibilite] = useState<any | null>(null)
+
+  
+  useEffect(() => {
+    channel.connect();
+  }, []);
 
   useEffect(() => {
     let subscription: Location.LocationSubscription
@@ -50,7 +55,7 @@ export default function ExploreScreen() {
         return
       }
       subscription = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.Highest, timeInterval: 5000, distanceInterval: 0 },
+        { accuracy: Location.Accuracy.Highest, timeInterval: 1000, distanceInterval: 0 },
         async (loc) => {
           const coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude }
           setUserLocation(coords)
@@ -189,96 +194,23 @@ export default function ExploreScreen() {
           style={styles.map}
         />
       )}
-      {pokeRequest && (
-        <TouchableOpacity
-          style={styles.warningBtn}
-          onPress={() => setShowPopup(true)}
-        >
-          <Ionicons name="warning-outline" size={24} color="#fff" />
-        </TouchableOpacity>
-      )}
+      
 
-      {showPopup && (
-          <View style={styles.popup}>
-            <Text style={styles.popupText}>Demande de localisation reçue</Text>
-            <View style={styles.popupActions}>
-              <TouchableOpacity
-                style={styles.acceptBtn}
-                onPress={() => {
-                  if (pokeChannel && userLocation) {
-                    const payload = {
-                      type: "coords",
-                      lat: userLocation.latitude,
-                      lng: userLocation.longitude,
-                    }
-                    pokeChannel.send(JSON.stringify(payload))
-                    if (pokeRequest && "lat" in pokeRequest && "lng" in pokeRequest) {
-                      webRef.current?.postMessage(JSON.stringify({
-                        type: "draw-route",
-                        fromLat: userLocation.latitude,
-                        fromLng: userLocation.longitude,
-                        toLat: pokeRequest.lat,
-                        toLng: pokeRequest.lng
-                      }))
-                    }
-                  }
-                  setShowPopup(false)
-                  setPokeRequest(null)
-                }}
-              >
-                <Ionicons name="checkmark" size={24} color="#fff" />
-              </TouchableOpacity>
+      <TouchableOpacity style={styles.requestBtn} onPress={() => channel.requestLocation()}>
+        <Ionicons name="navigate-outline" size={20} color="#fff" />
+        <Text style={styles.btnText}>Demander</Text>
+      </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.rejectBtn}
-                onPress={() => {
-                  setShowPopup(false)
-                  setPokeRequest(null)
-                  setPokeChannel(null)
-                }}
-              >
-                <Ionicons name="close" size={24} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </View>
+        {disponibilite?.position?.coordinates && (
+          <TouchableOpacity
+            onPress={() => {
+              const [lng, lat] = disponibilite.position.coordinates
+              channel.sendLocation(lat, lng)
+            }}
+          >
+            <Text>Envoyer ma localisation</Text>
+          </TouchableOpacity>
         )}
-
-        <TouchableOpacity
-          style={styles.pokeBtn}
-          onPress={() => {
-            console.log("[P2P] Bouton poke pressé → initialisation du canal P2P")
-
-            const channel = new PokeChannel("driver", (payload) => {
-              try {
-                const parsed = JSON.parse(payload)
-                if (parsed.type === "coords") {
-                  setPokeRequest({ lat: parsed.lat, lng: parsed.lng })
-                  if (userLocation) {
-                    webRef.current?.postMessage(JSON.stringify({
-                      type: "draw-route",
-                      fromLat: parsed.lat,
-                      fromLng: parsed.lng,
-                      toLat: userLocation.latitude,
-                      toLng: userLocation.longitude
-                    }))
-                  }
-                } else if (payload === "poke-request") {
-                  setShowPopup(true)
-                  setPokeRequest({ from: "passenger" })
-                }
-              } catch (err) {
-                console.error("[P2P] Erreur parsing côté conducteur:", err)
-              }
-            })
-
-            setPokeChannel(channel)
-
-            channel.send("poke-request")
-            console.log("[P2P] Canal créé et message envoyé: poke-request")
-          }}
-        >
-          <Ionicons name="hand-left-outline" size={24} color="#fff" />
-        </TouchableOpacity>
 
         <TouchableOpacity style={styles.recenterBtn} onPress={recenter}>
           <Ionicons name="locate-outline" size={28} color="#fff" />
@@ -371,5 +303,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  requestBtn: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    backgroundColor: '#FF9500',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    marginLeft: 8,
+    textAlign: 'center',
+  },
+  
 })
 
