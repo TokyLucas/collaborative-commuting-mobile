@@ -267,7 +267,6 @@ export default function ExploreScreen() {
   : '';
 
 
-
   const recenter = () => {
     if (!userLocation || !webRef.current) return
     const js = `
