@@ -42,32 +42,6 @@ export default function ExploreScreen() {
   const [pokeRequest, setPokeRequest] = useState<PokeRequest | null>(null)
 
   useEffect(() => {
-    const channel = new PokeChannel("passenger", (payload) => {
-      try {
-        const parsed = JSON.parse(payload)
-        if (parsed.type === "coords") {
-          setPokeRequest({ lat: parsed.lat, lng: parsed.lng })
-          if (userLocation) {
-            webRef.current?.postMessage(JSON.stringify({
-              type: "draw-route",
-              fromLat: parsed.lat,
-              fromLng: parsed.lng,
-              toLat: userLocation.latitude,
-              toLng: userLocation.longitude
-            }))
-          }
-        } else if (payload === "poke-request") {
-          setShowPopup(true)
-          setPokeRequest({ from: "driver" })
-        }
-      } catch (err) {
-        console.error("Erreur parsing côté passager:", err)
-      }
-    })
-    setPokeChannel(channel)
-  }, [userLocation])
-
-  useEffect(() => {
     let subscription: Location.LocationSubscription
     ;(async () => {
       const { status } = await Location.requestForegroundPermissionsAsync()
@@ -272,35 +246,35 @@ export default function ExploreScreen() {
         <TouchableOpacity
           style={styles.pokeBtn}
           onPress={() => {
-            if (!pokeChannel) {
-              const channel = new PokeChannel("passenger-1", (payload) => {
-                try {
-                  const parsed = JSON.parse(payload)
-                  if (parsed.type === "coords") {
-                    setPokeRequest({ lat: parsed.lat, lng: parsed.lng })
-                    if (userLocation) {
-                      webRef.current?.postMessage(JSON.stringify({
-                        type: "draw-route",
-                        fromLat: parsed.lat,
-                        fromLng: parsed.lng,
-                        toLat: userLocation.latitude,
-                        toLng: userLocation.longitude
-                      }))
-                    }
-                  } else if (payload === "poke-request") {
-                    setShowPopup(true)
-                    setPokeRequest({ from: "driver" })
-                  }
-                } catch (err) {
-                  console.error("Erreur parsing côté passager:", err)
-                }
-              })
-              setPokeChannel(channel)
-            }
+            console.log("[P2P] Bouton poke pressé → initialisation du canal P2P")
 
-            if (pokeChannel) {
-              pokeChannel.send("poke-request")
-            }
+            const channel = new PokeChannel("driver", (payload) => {
+              try {
+                const parsed = JSON.parse(payload)
+                if (parsed.type === "coords") {
+                  setPokeRequest({ lat: parsed.lat, lng: parsed.lng })
+                  if (userLocation) {
+                    webRef.current?.postMessage(JSON.stringify({
+                      type: "draw-route",
+                      fromLat: parsed.lat,
+                      fromLng: parsed.lng,
+                      toLat: userLocation.latitude,
+                      toLng: userLocation.longitude
+                    }))
+                  }
+                } else if (payload === "poke-request") {
+                  setShowPopup(true)
+                  setPokeRequest({ from: "passenger" })
+                }
+              } catch (err) {
+                console.error("[P2P] Erreur parsing côté conducteur:", err)
+              }
+            })
+
+            setPokeChannel(channel)
+
+            channel.send("poke-request")
+            console.log("[P2P] Canal créé et message envoyé: poke-request")
           }}
         >
           <Ionicons name="hand-left-outline" size={24} color="#fff" />
