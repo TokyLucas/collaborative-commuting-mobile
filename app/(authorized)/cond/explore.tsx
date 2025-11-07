@@ -15,19 +15,69 @@ export default function ExploreScreen() {
   const [disponibilite, setDisponibilite] = useState<any | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pokeChannel, setPokeChannel] = useState<PokeChannel | null>(null)
-  const [pokeRequest, setPokeRequest] = useState<{ from: string } | null>(null)
   const [showPopup, setShowPopup] = useState(false)
+  const [trajetEnRoute, setTrajetEnRoute] = useState<any | null>(null)
+
 
   useEffect(() => {
-    if (user?.current) {
-      const channel = new PokeChannel(String(user.current), (payload) => {
-        console.log("[P2P] Message reçu:", payload)
-        setPokeRequest({ from: payload.from })
-      })
-      console.log("[P2P] Canal connecté pour:", user.current)
-      setPokeChannel(channel)
+    const fetchDisponibilite = async () => {
+      if (token?.current && user?.current) {
+        try {
+          const res = await fetch(
+            `${process.env.EXPO_PUBLIC_API_BASEURL}/api/disponibilites/conducteur/${user.current}`,
+            { headers: { Authorization: `Bearer ${token.current}` } }
+          )
+          if (res.ok) {
+            const dispo = await res.json()
+            setDisponibilite(dispo)
+          }
+        } catch (e) {
+          console.error("Erreur réseau GET disponibilite:", e)
+        }
+      }
     }
-  }, [user])
+    fetchDisponibilite()
+  }, [token, user, trajetEnRoute])
+
+  type PokeRequest =
+  | { from: string }
+  | { lat: number; lng: number }
+
+  const [pokeRequest, setPokeRequest] = useState<PokeRequest | null>(null)
+
+  useEffect(() => {
+    const channel = new PokeChannel("driver", (payload) => {
+      console.log("[P2P] Message brut reçu côté conducteur:", payload)
+
+      try {
+        const parsed = JSON.parse(payload)
+
+        if (parsed.type === "coords") {
+          console.log("[P2P] Coordonnées reçues côté conducteur:", parsed)
+          setPokeRequest({ lat: parsed.lat, lng: parsed.lng })
+
+          if (userLocation) {
+            webRef.current?.postMessage(JSON.stringify({
+              type: "draw-route",
+              fromLat: parsed.lat,
+              fromLng: parsed.lng,
+              toLat: userLocation.latitude,
+              toLng: userLocation.longitude
+            }))
+          }
+        } else if (payload === "poke-request") {
+          console.log("[P2P] Poke reçu côté conducteur")
+          setShowPopup(true)
+          setPokeRequest({ from: "passenger" }) 
+        }
+      } catch (err) {
+        console.error("[P2P] Erreur parsing côté conducteur:", err)
+      }
+    })
+
+    console.log("[P2P] Canal P2P connecté pour le conducteur")
+    setPokeChannel(channel)
+  }, [userLocation])
 
   useEffect(() => {
     let subscription: Location.LocationSubscription
@@ -81,47 +131,141 @@ export default function ExploreScreen() {
     }
   }, [token, user])
 
-  const leafletHTML = userLocation
-    ? `
-    <html>
-      <head>
-        <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-        <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-        <style>
-          #map { height: 100%; width: 100%; margin:0; padding:0; }
-          body { margin:0; }
-        </style>
-      </head>
-      <body>
-        <div id="map"></div>
-        <script>
-          window.map = L.map('map').setView([${userLocation.latitude}, ${userLocation.longitude}], 30);
-
-          L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
-            attribution: '&copy; OSM contributors, OSM France',
-            subdomains: 'abc',
-            maxZoom: 20
-          }).addTo(window.map);
-
-          var bigIcon = L.icon({
-            iconUrl: 'https://unpkg.com/leaflet/dist/images/marker-icon.png',
-            iconSize: [75, 123],
-            iconAnchor: [37, 122],
-            popupAnchor: [0, -122]
-          });
-
-          window.userMarker = L.marker(
-            [${userLocation.latitude}, ${userLocation.longitude}],
-            { icon: bigIcon }
+  useEffect(() => {
+    const fetchTrajet = async () => {
+      if (token?.current && user?.current) {
+        try {
+          const res = await fetch(
+            `${process.env.EXPO_PUBLIC_API_BASEURL}/api/trajetC/conducteur/${user.current}`,
+            { headers: { Authorization: `Bearer ${token.current}` } }
           )
-          .addTo(window.map)
-          .bindPopup("<span style='font-size:30px; font-weight:bold;'>Vous</span>")
-          .openPopup();
-        </script>
-      </body>
-    </html>
+          if (res.ok) {
+            const data = await res.json()
+            const enRoute = Array.isArray(data) ? data.find((t) => t.statut === "EN_ROUTE") : null
+            if (enRoute) {
+              const trajet = {
+                id: enRoute.id,
+                latArrivee: enRoute.latArrivee,
+                lngArrivee: enRoute.lngArrivee,
+                placesDisponibles: enRoute.placesDisponibles,
+              }
+            
+              setTrajetEnRoute(trajet)
+            
+              console.log(
+                "Trajet EN_ROUTE:",
+                "ID =", trajet.id,
+                "| Places =", trajet.placesDisponibles,
+                "| Arrivée =", trajet.latArrivee, trajet.lngArrivee
+              )
+            } else {
+              setTrajetEnRoute(null)
+            }
+          } else {
+            setTrajetEnRoute(null)
+          }
+        } catch (e) {
+          console.error("Erreur réseau GET trajet:", e)
+          setError("Erreur réseau")
+        }
+      }
+    }
+  
+    fetchTrajet()
+  }, [token, user])
+
+  const leafletHTML = userLocation && trajetEnRoute
+  ? `
+  <html>
+    <head>
+      <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+      <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+      <style>
+        #map { height: 100%; width: 100%; margin:0; padding:0; }
+        body { margin:0; }
+      </style>
+    </head>
+    <body>
+      <div id="map"></div>
+      <script>
+        console.log("Init map avec userLocation:", ${userLocation.latitude}, ${userLocation.longitude});
+        console.log("Trajet arrivée:", ${trajetEnRoute.latArrivee}, ${trajetEnRoute.lngArrivee});
+
+        window.map = L.map('map').setView([${userLocation.latitude}, ${userLocation.longitude}], 14);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+          attribution: '&copy; OSM contributors, OSM France',
+          subdomains: 'abc',
+          maxZoom: 20
+        }).addTo(window.map);
+
+        var bigIcon = L.icon({
+          iconUrl: 'https://unpkg.com/leaflet/dist/images/marker-icon.png',
+          iconSize: [75, 123],
+          iconAnchor: [37, 122],
+          popupAnchor: [0, -122]
+        });
+
+        L.marker([${userLocation.latitude}, ${userLocation.longitude}], { icon: bigIcon })
+          .addTo(window.map).bindPopup("<b>Vous</b>").openPopup();
+
+        L.marker([${trajetEnRoute.latArrivee}, ${trajetEnRoute.lngArrivee}])
+          .addTo(window.map).bindPopup("<b>Arrivée</b>");
+
+        const url = "https://graphhopper.com/api/1/route?point=${userLocation.latitude},${userLocation.longitude}&point=${trajetEnRoute.latArrivee},${trajetEnRoute.lngArrivee}&vehicle=car&locale=fr&points_encoded=false&key=786c49d3-b386-4554-a770-218b01fc6fbe";
+        console.log("Appel GraphHopper URL:", url);
+
+        fetch(url)
+          .then(res => {
+            console.log("Réponse brute status:", res.status);
+            return res.json();
+          })
+          .then(data => {
+            console.log("Réponse JSON complète:", data);
+
+            if (data.paths && data.paths.length > 0) {
+              var geojson = data.paths[0].points;
+              console.log("GeoJSON points:", geojson);
+
+              if (geojson && geojson.coordinates) {
+                console.log("Nombre de coordonnées:", geojson.coordinates.length);
+                var coords = geojson.coordinates.map(c => [c[1], c[0]]);
+                console.log("Coords converties pour Leaflet:", coords.slice(0,10)); // affiche les 10 premières
+
+                var routeLine = L.polyline(coords, { color: 'blue', weight: 5 }).addTo(window.map);
+                console.log("Polyline ajouté:", routeLine);
+
+                window.map.fitBounds(routeLine.getBounds());
+                console.log("Map recadrée sur la route");
+              } else {
+                console.error("Pas de coordonnées dans geojson:", geojson);
+              }
+            } else {
+              console.error("Pas de route trouvée:", data);
+            }
+          })
+          .catch(err => console.error("Erreur GraphHopper:", err));
+
+        document.addEventListener('message', function(e) {
+          try {
+            var msg = JSON.parse(e.data);
+            if (msg.type === 'draw-route') {
+              var from = [msg.fromLat, msg.fromLng];
+              var to = [msg.toLat, msg.toLng];
+              var routeLine = L.polyline([from, to], { color: 'red', weight: 4 }).addTo(window.map);
+              window.map.fitBounds(routeLine.getBounds());
+              console.log("Ligne rouge tracée entre:", from, "et", to);
+            }
+          } catch (err) {
+            console.error("Erreur draw-route:", err);
+          }
+        });
+      </script>
+    </body>
+  </html>
   `
-    : ''
+  : '';
+
 
   const recenter = () => {
     if (!userLocation || !webRef.current) return
@@ -209,65 +353,74 @@ export default function ExploreScreen() {
       )}
 
       <View style={styles.bottomPanel}>
-        {disponibilite && (
-          <Text style={styles.statusText}>
-            Statut actuel : {disponibilite.statut === "AVAILABLE" ? "Disponible" : "Indisponible"}{"\n"}
-            Places disponibles : {disponibilite.placesDisponibles}
-          </Text>
-        )}
+      {disponibilite && (
+        <Text style={styles.statusText}>
+          Statut actuel : {disponibilite.statut === "AVAILABLE" ? "Disponible" : "Indisponible"}{"\n"}
+        </Text>
+      )}
 
-          {pokeRequest && (
-            <TouchableOpacity style={styles.warningBtn} onPress={() => setShowPopup(true)}>
-              <Ionicons name="warning-outline" size={28} color="#fff" />
+      {trajetEnRoute && (
+        <Text style={styles.statusText}>
+          Places disponibles : {trajetEnRoute.placesDisponibles}
+        </Text>
+      )}
+
+
+      {pokeRequest && (
+        <TouchableOpacity style={styles.warningBtn} onPress={() => setShowPopup(true)}>
+          <Ionicons name="warning-outline" size={28} color="#fff" />
+        </TouchableOpacity>
+      )}
+
+      {showPopup && (
+        <View style={styles.popup}>
+          <Text style={styles.popupText}>Demande de localisation reçue</Text>
+          <View style={styles.popupActions}>
+          <TouchableOpacity
+            style={styles.acceptBtn}
+            onPress={() => {
+              if (pokeChannel && userLocation) {
+                const payload = {
+                  type: "coords",
+                  lat: userLocation.latitude,
+                  lng: userLocation.longitude,
+                }
+                console.log("[P2P] Conducteur accepte → envoi coords:", payload)
+                pokeChannel.send(JSON.stringify(payload))
+
+                // trace la ligne rouge si pokeRequest contient des coords
+                if (pokeRequest && "lat" in pokeRequest && "lng" in pokeRequest) {
+                  webRef.current?.postMessage(JSON.stringify({
+                    type: "draw-route",
+                    fromLat: userLocation.latitude,
+                    fromLng: userLocation.longitude,
+                    toLat: pokeRequest.lat,
+                    toLng: pokeRequest.lng
+                  }))
+                }
+              }
+              setShowPopup(false)
+              setPokeRequest(null)
+            }}
+          >
+            <Ionicons name="checkmark" size={24} color="#fff" />
+          </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.rejectBtn}
+              onPress={() => {
+                console.log("[P2P] Conducteur refuse → fermeture canal")
+                setShowPopup(false)
+                setPokeRequest(null)
+                setPokeChannel(null)
+              }}
+            >
+              <Ionicons name="close" size={24} color="#fff" />
             </TouchableOpacity>
-          )}
+          </View>
+        </View>
+      )}
 
-          {showPopup && (
-            <View style={styles.popup}>
-              <Text style={styles.popupText}>
-                  Demande de localisation par le passager
-              </Text>
-              <View style={styles.popupActions}>
-                <TouchableOpacity
-                  style={styles.acceptBtn}
-                  onPress={() => {
-                    console.log("[P2P] ACCEPT → connexion confirmée")
-                    if (userLocation) {
-                      const payload = {
-                        type: "coords",
-                        lat: userLocation.latitude,
-                        lng: userLocation.longitude,
-                      }
-                      console.log("[P2P] Envoi des coordonnées:", payload)
-                      pokeChannel?.send(JSON.stringify(payload))
-                      webRef.current?.postMessage(JSON.stringify({
-                        type: "draw-route",
-                        fromLat: userLocation.latitude,
-                        fromLng: userLocation.longitude,
-                        toLat: userLocation.latitude, 
-                        toLng: userLocation.longitude
-                      }))
-                    }
-                    setPokeRequest(null)
-                    setShowPopup(false)
-                  }}
-                >
-                  <Ionicons name="checkmark" size={24} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.rejectBtn}
-                  onPress={() => {
-                    console.log("[P2P] REFUS → rien n’est envoyé")
-                    setPokeRequest(null)
-                    setShowPopup(false)
-                    setPokeChannel(null)
-                  }}
-                >
-                  <Ionicons name="close" size={24} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
 
         <View style={styles.actionsRow}>
           {disponibilite && (

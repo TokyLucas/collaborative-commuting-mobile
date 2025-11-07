@@ -3,11 +3,12 @@ import { useAuthSession } from '@/providers/AuthProvider'
 import { Ionicons } from '@expo/vector-icons'
 import * as Location from 'expo-location'
 import React, { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Dimensions, StyleSheet, TouchableOpacity } from 'react-native'
+import { ActivityIndicator, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { WebView } from 'react-native-webview'
 import CarService from '../../../services/CarService'
 import { PokeChannel } from '../../../services/PokeChannel'
 import TrajetConducteurService from '../../../services/TrajetConducteurService'
+
 
 type Marker = {
   id: string
@@ -26,6 +27,10 @@ type Marker = {
   carNbPlaces: number
 }
 
+type PokeRequest =
+  | { from: string }
+  | { lat: number; lng: number }
+
 export default function ExploreScreen() {
   const { token } = useAuthSession()
   const webRef = useRef<WebView>(null)
@@ -33,17 +38,34 @@ export default function ExploreScreen() {
   const [markers, setMarkers] = useState<Marker[]>([])
   const [loading, setLoading] = useState(true)
   const [pokeChannel, setPokeChannel] = useState<PokeChannel | null>(null)
-  const [pokeRequest, setPokeRequest] = useState<{ from: string } | null>(null)
   const [showPopup, setShowPopup] = useState(false)
+  const [pokeRequest, setPokeRequest] = useState<PokeRequest | null>(null)
 
   useEffect(() => {
     const channel = new PokeChannel("passenger", (payload) => {
-      console.log("[P2P] Message reçu côté passager:", payload)
-      setPokeRequest({ from: payload.from })
+      try {
+        const parsed = JSON.parse(payload)
+        if (parsed.type === "coords") {
+          setPokeRequest({ lat: parsed.lat, lng: parsed.lng })
+          if (userLocation) {
+            webRef.current?.postMessage(JSON.stringify({
+              type: "draw-route",
+              fromLat: parsed.lat,
+              fromLng: parsed.lng,
+              toLat: userLocation.latitude,
+              toLng: userLocation.longitude
+            }))
+          }
+        } else if (payload === "poke-request") {
+          setShowPopup(true)
+          setPokeRequest({ from: "driver" })
+        }
+      } catch (err) {
+        console.error("Erreur parsing côté passager:", err)
+      }
     })
-    console.log("[P2P] Canal P2P connecté pour le passager: passenger")
     setPokeChannel(channel)
-  }, [])
+  }, [userLocation])
 
   useEffect(() => {
     let subscription: Location.LocationSubscription
@@ -158,7 +180,16 @@ export default function ExploreScreen() {
               map.panTo(userMarker.getLatLng());
               userMarker.openPopup();
             }
-          } catch (_) {}
+            if (msg.type === 'draw-route') {
+              var from = [msg.fromLat, msg.fromLng];
+              var to = [msg.toLat, msg.toLng];
+              var routeLine = L.polyline([from, to], { color: 'red', weight: 4 }).addTo(map);
+              map.fitBounds(routeLine.getBounds());
+              console.log("Ligne rouge tracée entre:", from, "et", to);
+            }
+          } catch (err) {
+            console.error("Erreur draw-route:", err);
+          }
         });
       </script>
     </body>
@@ -177,9 +208,13 @@ export default function ExploreScreen() {
     <ThemedView style={styles.container}>
       {loading && <ActivityIndicator style={styles.loaderOverlay} size="large" />}
       {!loading && userLocation && (
-        <WebView ref={webRef} originWhitelist={['*']} source={{ html: leafletHTML }} style={styles.map} />
+        <WebView
+          ref={webRef}
+          originWhitelist={['*']}
+          source={{ html: leafletHTML }}
+          style={styles.map}
+        />
       )}
-
       {pokeRequest && (
         <TouchableOpacity
           style={styles.warningBtn}
@@ -190,79 +225,105 @@ export default function ExploreScreen() {
       )}
 
       {showPopup && (
-        <ThemedView style={styles.popup}>
-          <TouchableOpacity
-            style={styles.acceptBtn}
-            onPress={() => {
-              if (pokeChannel && userLocation) {
-                pokeChannel.send(JSON.stringify({
-                  type: "coords",
-                  lat: userLocation.latitude,
-                  lng: userLocation.longitude
-                }))
-                console.log("[P2P] Coordonnées envoyées:", userLocation.latitude, userLocation.longitude)
-                setShowPopup(false)
-                setPokeRequest(null)
-              }
-            }}
-          >
-            <Ionicons name="checkmark-outline" size={24} color="#fff" />
-          </TouchableOpacity>
+          <View style={styles.popup}>
+            <Text style={styles.popupText}>Demande de localisation reçue</Text>
+            <View style={styles.popupActions}>
+              <TouchableOpacity
+                style={styles.acceptBtn}
+                onPress={() => {
+                  if (pokeChannel && userLocation) {
+                    const payload = {
+                      type: "coords",
+                      lat: userLocation.latitude,
+                      lng: userLocation.longitude,
+                    }
+                    pokeChannel.send(JSON.stringify(payload))
+                    if (pokeRequest && "lat" in pokeRequest && "lng" in pokeRequest) {
+                      webRef.current?.postMessage(JSON.stringify({
+                        type: "draw-route",
+                        fromLat: userLocation.latitude,
+                        fromLng: userLocation.longitude,
+                        toLat: pokeRequest.lat,
+                        toLng: pokeRequest.lng
+                      }))
+                    }
+                  }
+                  setShowPopup(false)
+                  setPokeRequest(null)
+                }}
+              >
+                <Ionicons name="checkmark" size={24} color="#fff" />
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.refuseBtn}
-            onPress={() => {
-              console.log("[P2P] Poke refusé")
-              setShowPopup(false)
-              setPokeRequest(null)
-              setPokeChannel(null)
-            }}
-          >
-            <Ionicons name="close-outline" size={24} color="#fff" />
-          </TouchableOpacity>
-        </ThemedView>
-      )}
+              <TouchableOpacity
+                style={styles.rejectBtn}
+                onPress={() => {
+                  setShowPopup(false)
+                  setPokeRequest(null)
+                  setPokeChannel(null)
+                }}
+              >
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
-      <TouchableOpacity
-        style={styles.pokeBtn}
-        onPress={() => {
-          if (!pokeChannel) {
-            const channel = new PokeChannel("passenger-1", (payload) => {
-              console.log("[P2P] Message reçu côté passager:", payload)
-              setPokeRequest({ from: payload.from })
-            })
-            setPokeChannel(channel)
-            console.log("[P2P] Canal P2P connecté pour le passager: passenger-1")
-          } else {
-            console.log("[P2P] Canal déjà actif → prêt à envoyer")
-          }
-
-          if (pokeChannel) {
-            console.log("[P2P] Canal actif → envoi poke-request")
-            pokeChannel.send("poke-request")
-            console.log("[P2P] Demande envoyée: poke-request")
-
-            if (userLocation) {
-              console.log("[P2P] Coordonnées actuelles:", userLocation.latitude, userLocation.longitude)
+        <TouchableOpacity
+          style={styles.pokeBtn}
+          onPress={() => {
+            if (!pokeChannel) {
+              const channel = new PokeChannel("passenger-1", (payload) => {
+                try {
+                  const parsed = JSON.parse(payload)
+                  if (parsed.type === "coords") {
+                    setPokeRequest({ lat: parsed.lat, lng: parsed.lng })
+                    if (userLocation) {
+                      webRef.current?.postMessage(JSON.stringify({
+                        type: "draw-route",
+                        fromLat: parsed.lat,
+                        fromLng: parsed.lng,
+                        toLat: userLocation.latitude,
+                        toLng: userLocation.longitude
+                      }))
+                    }
+                  } else if (payload === "poke-request") {
+                    setShowPopup(true)
+                    setPokeRequest({ from: "driver" })
+                  }
+                } catch (err) {
+                  console.error("Erreur parsing côté passager:", err)
+                }
+              })
+              setPokeChannel(channel)
             }
-          }
-        }}
-      >
-        <Ionicons name="hand-left-outline" size={24} color="#fff" />
-      </TouchableOpacity>
 
+            if (pokeChannel) {
+              pokeChannel.send("poke-request")
+            }
+          }}
+        >
+          <Ionicons name="hand-left-outline" size={24} color="#fff" />
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.recenterBtn} onPress={recenter}>
-        <Ionicons name="locate-outline" size={28} color="#fff" />
-      </TouchableOpacity>
-    </ThemedView>
-  )
+        <TouchableOpacity style={styles.recenterBtn} onPress={recenter}>
+          <Ionicons name="locate-outline" size={28} color="#fff" />
+        </TouchableOpacity>
+        </ThemedView>
+    )
 }
 
 const { width } = Dimensions.get('window')
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 },
+  loaderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   pokeBtn: {
     position: 'absolute',
     bottom: 80,
@@ -287,12 +348,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 4,
   },
-  loaderOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   warningBtn: {
     position: 'absolute',
     bottom: 140,
@@ -316,6 +371,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
+  popupText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  popupActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    flex: 1,
+  },
   acceptBtn: {
     backgroundColor: '#4CAF50',
     width: 48,
@@ -324,7 +389,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  refuseBtn: {
+  rejectBtn: {
     backgroundColor: '#FF2D55',
     width: 48,
     height: 48,
@@ -332,5 +397,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  
 })
+

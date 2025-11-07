@@ -13,12 +13,12 @@ import {
   View,
 } from "react-native";
 
+import { useAuthSession } from '@/providers/AuthProvider';
 import TrajetAjoutScreen from "../../../components/TrajetAjoutScreen";
 import TrajetDetailModal from "../../../components/TrajetDetailModal";
 import TrajetUpdateScreen from "../../../components/TrajetUpdateScreen";
 import { TrajetVoiture } from "../../../models/TrajetVoiture";
 import TrajetConducteurService from "../../../services/TrajetConducteurService";
-
 type Mode = "list" | "add" | "update";
 
 export default function AccueilScreen() {
@@ -27,41 +27,34 @@ export default function AccueilScreen() {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-
+  const { token, user } = useAuthSession();
   const [showPlacesModal, setShowPlacesModal] = useState(false);
   const [placesInput, setPlacesInput] = useState("");
   const [currentTrajetId, setCurrentTrajetId] = useState<string | null>(null);
 
   // ——— récupérer la liste des trajets ———
-  const fetchTrajets = useCallback(async () => {
-    try {
-      const token = await SecureStore.getItemAsync("userToken");
-      if (!token) return;
+  
+const fetchTrajets = useCallback(async () => {
+  try {
+    if (!token?.current || !user?.current) return;
 
-      const response = await TrajetConducteurService.getAllView(token);
-      const data = await response.json();
+    console.log("Appel API:", `${TrajetConducteurService.API_URL}/api/trajetC/conducteur/${user.current}`);
 
-      if (!response.ok) {
-        console.error("Erreur fetch:", data?.message || "Erreur inconnue");
-        return;
-      }
+    const response = await TrajetConducteurService.getByConducteurId(user.current, token.current);
+    const data = await response.json();
 
-      // filtrage logique : seulement trajets actifs et non désactivés temporairement
-      const today = new Date();
-      const trajetsFiltres = (Array.isArray(data) ? data : []).filter((t: TrajetVoiture) => {
-        const actif = t.actif === 1 || t.actif === null;
-        const debut = t.dateDesactivationDebut ? new Date(t.dateDesactivationDebut) : null;
-        const fin = t.dateDesactivationFin ? new Date(t.dateDesactivationFin) : null;
-        const desactiveTemporaire =
-          debut && fin && today >= debut && today <= fin;
-        return actif && !desactiveTemporaire;
-      });
+    console.log("Réponse API trajets du conducteur:", data);
 
-      setTrajets(trajetsFiltres);
-    } catch (e) {
-      console.error("Erreur API:", e);
+    if (!response.ok) {
+      console.error("Erreur fetch:", data?.message || "Erreur inconnue");
+      return;
     }
-  }, []);
+
+    setTrajets(Array.isArray(data) ? data : []);
+  } catch (e) {
+    console.error("Erreur API:", e);
+  }
+}, [user, token]);
 
   useEffect(() => {
     fetchTrajets();
@@ -93,6 +86,14 @@ export default function AccueilScreen() {
     try {
       const token = await SecureStore.getItemAsync("userToken");
       if (!token) return;
+
+      if (nouveauStatut === "EN_ROUTE") {
+        for (const t of trajets) {
+          if (t.id !== id && t.statut === "EN_ROUTE") {
+            await changerStatut(t.id, "PREVU");
+          }
+        }
+      }  
 
       const dto: any = { statut: nouveauStatut };
       if (placesDispoJournalier != null) dto.placesDispoJournalier = placesDispoJournalier;
@@ -142,7 +143,7 @@ export default function AccueilScreen() {
       return;
     }
     setShowPlacesModal(false);
-    await changerStatut(currentTrajetId, "En route", nb);
+    await changerStatut(currentTrajetId, "EN_ROUTE", nb);
     setCurrentTrajetId(null);
   };
 
@@ -175,6 +176,9 @@ export default function AccueilScreen() {
       </SafeAreaView>
     );
   }
+
+  const trajetEnRoute = trajets.find(t => t.statut === "EN_ROUTE");
+  const canalId = trajetEnRoute?.id;
 
   // ——— vue "Liste" ———
   return (
@@ -218,7 +222,7 @@ export default function AccueilScreen() {
                 <Text style={{ marginTop: 6 }}>Véhicule : {vehiculeLabel}</Text>
 
                 <View style={styles.actionRow}>
-                  {!isDisabled && item.statut === "Prévu" && (
+                  {!isDisabled && item.statut === "PREVU" && (
                     <TouchableOpacity
                       style={styles.iconBtn}
                       onPress={() => openPlacesModal(item.id)}
@@ -234,7 +238,7 @@ export default function AccueilScreen() {
                     <Text style={styles.icon}>🔍</Text>
                   </TouchableOpacity>
 
-                  {!isDisabled && item.statut !== "Terminé" && (
+                  {!isDisabled && item.statut !== "TERMINE" && (
                     <>
                       <TouchableOpacity
                         style={styles.iconBtn}
@@ -251,10 +255,10 @@ export default function AccueilScreen() {
                     </>
                   )}
 
-                  {item.statut === "En route" && !isDisabled && (
+                  {item.statut === "EN_ROUTE" && !isDisabled && (
                     <TouchableOpacity
                       style={styles.iconBtn}
-                      onPress={() => changerStatut(item.id, "Terminé")}
+                      onPress={() => changerStatut(item.id, "TERMINE")}
                     >
                       <Text style={styles.icon}>🔴</Text>
                     </TouchableOpacity>
