@@ -68,6 +68,15 @@ public static async getByIdView(id: string, token: string): Promise<any> {
   });
 }
 
+public static async getByStatut(statut: string, token: string): Promise<any> {
+    return fetch(`${this.API_URL}/api/trajetC/statut/${encodeURIComponent(statut)}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+    });
+  }
+  
 
 
 }
