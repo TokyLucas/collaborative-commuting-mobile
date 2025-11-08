@@ -28,6 +28,7 @@ type FieldBoxProps = React.ComponentProps<typeof TextInput> & {
   label: string;
   rightAdornment?: React.ReactNode;
 };
+
 function FieldBox({ label, rightAdornment, style, ...inputProps }: FieldBoxProps) {
   return (
     <View style={styles.box}>
@@ -70,46 +71,59 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
     actif: 1,
   });
 
-  // Charger trajet + voitures utilisateur
+  // 🧩 Chargement des infos du trajet
   useEffect(() => {
-    (async () => {
-      const token = await SecureStore.getItemAsync("userToken");
-      if (!token || !trajetId) return;
+    const fetchData = async () => {
+      try {
+        const token = await SecureStore.getItemAsync("userToken");
+        if (!token || !trajetId) return;
 
-      const res = await TrajetConducteurService.getById(trajetId, token);
-      const data = await res.json();
-      if (!res.ok) {
-        Alert.alert("Erreur", data?.message || "Chargement impossible");
-        return;
+        const res = await TrajetConducteurService.getById(trajetId, token);
+        const data = await res.json();
+        if (!res.ok) {
+          Alert.alert("Erreur", data?.message || "Chargement impossible");
+          return;
+        }
+
+        // Form principal
+        setForm({
+          id: data.id || trajetId,
+          pointDepart: data.pointDepart || "",
+          latDepart: String(data.latDepart ?? ""),
+          lngDepart: String(data.lngDepart ?? ""),
+          pointArrivee: data.pointArrivee || "",
+          latArrivee: String(data.latArrivee ?? ""),
+          lngArrivee: String(data.lngArrivee ?? ""),
+          heureDepartEstimee: new Date(data.heureDepartEstimee),
+          placesDisponibles: String(data.placesDisponibles ?? ""),
+          description: data.description || "",
+          statut: data.statut || "Prévu",
+          dateDesactivationDebut: data.dateDesactivationDebut ? new Date(data.dateDesactivationDebut) : null,
+          dateDesactivationFin: data.dateDesactivationFin ? new Date(data.dateDesactivationFin) : null,
+          actif: data.actif ?? 1,
+        });
+
+        setDesactivePermanent(data.actif === 0);
+
+        // ✅ Correction : valeur par défaut si aucun jour enregistré
+        const joursValides =
+          Array.isArray(data.jours) && data.jours.length > 0
+            ? data.jours.map((j: any) => Number(j))
+            : [1, 2, 3, 4, 5]; // L→V par défaut
+        setJours(joursValides);
+
+        // Récup voitures
+        const userId = data.idConducteur;
+        const list = await CarService.getUserCars(userId, token);
+        setCars(list);
+        if (!data.voitureId && list.length) setSelectedCarId(list[0].id);
+        else setSelectedCarId(data.voitureId || "");
+      } catch (e) {
+        console.error(e);
       }
+    };
 
-      setForm({
-        id: data.id || trajetId,
-        pointDepart: data.pointDepart || "",
-        latDepart: String(data.latDepart ?? ""),
-        lngDepart: String(data.lngDepart ?? ""),
-        pointArrivee: data.pointArrivee || "",
-        latArrivee: String(data.latArrivee ?? ""),
-        lngArrivee: String(data.lngArrivee ?? ""),
-        heureDepartEstimee: new Date(data.heureDepartEstimee),
-        placesDisponibles: String(data.placesDisponibles ?? ""),
-        description: data.description || "",
-        statut: data.statut || "Prévu",
-        dateDesactivationDebut: data.dateDesactivationDebut ? new Date(data.dateDesactivationDebut) : null,
-        dateDesactivationFin: data.dateDesactivationFin ? new Date(data.dateDesactivationFin) : null,
-        actif: data.actif ?? 1,
-      });
-
-      setDesactivePermanent(data.actif === 0);
-      setJours(data.jours || []); // pré-cochage des jours
-      setSelectedCarId(data.voitureId || "");
-
-      // Récupération voitures utilisateur
-      const userId = data.idConducteur;
-      const list = await CarService.getUserCars(userId, token);
-      setCars(list);
-      if (!data.voitureId && list.length) setSelectedCarId(list[0].id);
-    })();
+    fetchData();
   }, [trajetId]);
 
   const handleUpdate = async () => {
@@ -135,9 +149,11 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
       const dto: Omit<TrajetConducteur, "id"> & { voitureId: string } = {
         idConducteur: "",
         pointDepart: form.pointDepart.trim(),
-        latDepart, lngDepart,
+        latDepart,
+        lngDepart,
         pointArrivee: form.pointArrivee.trim(),
-        latArrivee, lngArrivee,
+        latArrivee,
+        lngArrivee,
         heureDepartEstimee: form.heureDepartEstimee.toISOString(),
         placesDisponibles,
         description: form.description.trim(),
@@ -172,7 +188,9 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
     <View style={{ flex: 1, backgroundColor: "#fff" }}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Modifier trajet</Text>
-        <TouchableOpacity onPress={onCancel}><Text style={styles.headerClose}>✕</Text></TouchableOpacity>
+        <TouchableOpacity onPress={onCancel}>
+          <Text style={styles.headerClose}>✕</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
@@ -258,7 +276,7 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
         {/* Sélecteur de jours */}
         <Text style={[styles.boxLabel, { marginTop: 10 }]}>Jours de trajet</Text>
         <View style={{ flexDirection: "row", justifyContent: "center", gap: 6, marginBottom: 12 }}>
-          {["L", "M", "M", "J", "V", "S", "D"].map((label, i) => {
+          {["L", "Ma", "Me", "J", "V", "S", "D"].map((label, i) => {
             const index = i + 1;
             const selected = jours.includes(index);
             return (

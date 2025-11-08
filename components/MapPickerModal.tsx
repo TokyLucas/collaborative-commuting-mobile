@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   StyleProp,
@@ -9,11 +10,7 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-import MapView, {
-  MapPressEvent,
-  Marker,
-  Region,
-} from "react-native-maps";
+import { WebView } from "react-native-webview";
 
 type Coords = { lat?: number; lng?: number };
 
@@ -24,44 +21,73 @@ type Props = {
   onPick: (lat: number, lng: number) => void;
 
   /** Optionnels */
-  initial?: Coords;                   // point pré-sélectionné
-  initialRegion?: Region;             // région par défaut de la carte
-  markerTitle?: string;               // titre du marker
-  confirmText?: string;               // texte bouton valider
-  cancelText?: string;                // texte bouton annuler
-  mapHeight?: number;                 // hauteur de la carte (px), défaut 360
-  mapContainerStyle?: StyleProp<ViewStyle>; // style conteneur carte
+  initial?: Coords;
+  markerTitle?: string;
+  confirmText?: string;
+  cancelText?: string;
+  mapHeight?: number;
+  mapContainerStyle?: StyleProp<ViewStyle>;
 };
 
-const DEFAULT_REGION: Region = {
-  latitude: -18.8792,
-  longitude: 47.5079,
-  latitudeDelta: 0.05,
-  longitudeDelta: 0.05,
-};
+const DEFAULT_COORD = { lat: -18.8792, lng: 47.5079 };
 
 export default function MapPickerModal({
   visible,
   title,
   onClose,
   onPick,
-  initial,
-  initialRegion = DEFAULT_REGION,
+  initial = DEFAULT_COORD,
   markerTitle = "Position",
   confirmText = "Valider le point",
   cancelText = "Annuler",
   mapHeight = 360,
   mapContainerStyle,
 }: Props) {
-  const [coord, setCoord] = useState<Coords>(initial || {});
+  const [coord, setCoord] = useState<Coords>(initial);
+  const webRef = useRef<WebView>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (visible) setCoord(initial || {});
+    if (visible) setCoord(initial);
   }, [visible, initial]);
 
-  const onMapPress = (e: MapPressEvent) => {
-    const { latitude, longitude } = e.nativeEvent.coordinate;
-    setCoord({ lat: latitude, lng: longitude });
+  const leafletHTML = `
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+        <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+        <style>
+          html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; }
+        </style>
+      </head>
+      <body>
+        <div id="map"></div>
+        <script>
+          const map = L.map('map').setView([${coord.lat}, ${coord.lng}], 14);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+          }).addTo(map);
+
+          let marker = L.marker([${coord.lat}, ${coord.lng}]).addTo(map).bindPopup("${markerTitle}").openPopup();
+
+          map.on('click', function(e) {
+            const { lat, lng } = e.latlng;
+            if (marker) map.removeLayer(marker);
+            marker = L.marker([lat, lng]).addTo(map).bindPopup("Nouveau point").openPopup();
+            window.ReactNativeWebView.postMessage(JSON.stringify({ lat, lng }));
+          });
+        </script>
+      </body>
+    </html>
+  `;
+
+  const handleMessage = (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      setCoord({ lat: data.lat, lng: data.lng });
+    } catch {}
   };
 
   const validate = () => {
@@ -76,7 +102,7 @@ export default function MapPickerModal({
   if (!visible) return null;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={false}>
+    <Modal visible={visible} animationType="slide">
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -86,7 +112,7 @@ export default function MapPickerModal({
           </TouchableOpacity>
         </View>
 
-        {/* Carte (hauteur fixe + absoluteFill) */}
+        {/* Carte (Leaflet / OpenStreetMap) */}
         <View
           style={[
             styles.mapBox,
@@ -94,22 +120,21 @@ export default function MapPickerModal({
             mapContainerStyle,
           ]}
         >
-          <MapView
-            key={visible ? "open" : "closed"} // force remount à l'ouverture
+          {loading && (
+            <ActivityIndicator
+              size="large"
+              color="#4A90E2"
+              style={StyleSheet.absoluteFillObject}
+            />
+          )}
+          <WebView
+            ref={webRef}
+            originWhitelist={["*"]}
+            source={{ html: leafletHTML }}
             style={StyleSheet.absoluteFillObject}
-            initialRegion={initialRegion}
-            onPress={onMapPress}
-            scrollEnabled
-            zoomEnabled
-            rotateEnabled={false}
-          >
-            {coord.lat && coord.lng ? (
-              <Marker
-                coordinate={{ latitude: coord.lat, longitude: coord.lng }}
-                title={markerTitle}
-              />
-            ) : null}
-          </MapView>
+            onLoadEnd={() => setLoading(false)}
+            onMessage={handleMessage}
+          />
         </View>
 
         {/* Footer */}
@@ -120,7 +145,10 @@ export default function MapPickerModal({
           >
             <Text style={styles.btnText}>{confirmText}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.btn, styles.cancel]} onPress={onClose}>
+          <TouchableOpacity
+            style={[styles.btn, styles.cancel]}
+            onPress={onClose}
+          >
             <Text style={styles.btnText}>{cancelText}</Text>
           </TouchableOpacity>
         </View>

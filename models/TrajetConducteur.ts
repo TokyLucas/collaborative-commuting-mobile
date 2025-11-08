@@ -7,14 +7,16 @@ export interface TrajetConducteur {
   pointArrivee: string;
   latArrivee: number;
   lngArrivee: number;
-  heureDepartEstimee: string;
+  heureDepartEstimee: string; 
   placesDisponibles: number;
-  placesDispoJournalier?: number | null;
+  placesDispoJournalier: number | null; 
   description: string;
   statut: string;
+  creeLe: string; 
+  misAJourLe: string;
   actif: number;
   voitureId: string;
-  jours?: number[] | null;
-  dateDesactivationDebut?: string | null;
-  dateDesactivationFin?: string | null;
+  jours: number[]; 
+  dateDesactivationDebut: string | null; 
+  dateDesactivationFin: string | null; 
 }
