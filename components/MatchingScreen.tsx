@@ -1,11 +1,12 @@
 import TrajetConducteurService from '@/services/TrajetConducteurService';
 import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Button, SafeAreaView, StyleSheet, Text } from 'react-native';
 
 type Props = {
   onCancel: () => void;
-  onSelectTrajet: (trajetId: string) => void; // callback pour le bouton
+  demandeId: string;
+  onSelectTrajet: (trajetId: string) => void; 
 };
 
 type Trajet = {
@@ -18,7 +19,7 @@ type Trajet = {
   statut: string;
 };
 
-export default function MatchingScreen({ onCancel, onSelectTrajet }: Props) {
+export default function MatchingScreen({ onCancel, demandeId, onSelectTrajet }: Props) {
   const [trajets, setTrajets] = useState<Trajet[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,48 +43,14 @@ export default function MatchingScreen({ onCancel, onSelectTrajet }: Props) {
 
     fetchTrajets();
   }, []);
-
-  const renderItem = ({ item }: { item: Trajet }) => (
-    <View style={styles.card}>
-      <Text style={styles.title}>
-        {item.pointDepart} → {item.pointArrivee}
-      </Text>
-      <Text>Heure départ : {new Date(item.heureDepartEstimee).toLocaleTimeString()}</Text>
-      <Text>Places disponibles : {item.placesDisponibles}</Text>
-      <Text>Description : {item.description}</Text>
-
-      <TouchableOpacity
-        style={styles.sendButton}
-        onPress={() => onSelectTrajet(item._id)}
-      >
-        <Text style={styles.sendButtonText}>Envoyer</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  if (loading) return <Text>Chargement...</Text>;
-
+  
   return (
-    <View style={styles.container}>
-      {trajets.length === 0 ? (
-        <Text style={styles.noMatchText}>Aucun trajet correspondant pour le moment 😔</Text>
-      ) : (
-        <FlatList
-          data={trajets}
-          keyExtractor={(item) => item._id}
-          renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
-      )}
-
-      <TouchableOpacity
-        style={[styles.sendButton, { backgroundColor: '#f44336', marginTop: 10 }]}
-        onPress={onCancel}
-      >
-        <Text style={styles.sendButtonText}>Annuler</Text>
-      </TouchableOpacity>
-    </View>
+    <SafeAreaView style={{ flex: 1 }}>
+      <Text>Matching pour la demande {demandeId}</Text>
+      <Button title="Retour" onPress={onCancel} />
+    </SafeAreaView>
   );
+
 }
 
 const styles = StyleSheet.create({

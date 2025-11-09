@@ -1,4 +1,5 @@
 import DemandeAjoutScreen from "@/components/DemandeAjoutScreen";
+import MatchingScreen from "@/components/MatchingScreen";
 import { useAuthSession } from "@/providers/AuthProvider";
 import DemandeService from "@/services/DemandeService";
 import { useNavigation } from "@react-navigation/native";
@@ -13,10 +14,13 @@ import {
   View,
 } from "react-native";
 
+type Mode = "list" | "add" | "matching";
+
 export default function PassagerIndexScreen() {
   const { user, token } = useAuthSession();
   const [demandes, setDemandes] = useState<any[]>([]);
-  const [mode, setMode] = useState<"add" | "list">("list");
+  const [mode, setMode] = useState<Mode>("list");
+  const [selectedDemandeId, setSelectedDemandeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const navigation: any = useNavigation();
@@ -47,9 +51,9 @@ export default function PassagerIndexScreen() {
           onCancel={() => setMode("list")}
           onSuccess={(demandeId) => {
             if (demandeId) {
-              // demande créée → redirection vers MatchingScreen
-              navigation.navigate("Matching", { demandeId });
-            } else {
+              setSelectedDemandeId(demandeId);
+              setMode("matching"); // on passe direct à MatchingScreen
+            }  else {
               // pas d'ID → revenir à la liste
               setMode("list");
             }
@@ -59,6 +63,11 @@ export default function PassagerIndexScreen() {
     );
   }
 
+  if (mode === "matching" && selectedDemandeId) {
+    return (
+      <MatchingScreen demandeId={selectedDemandeId} onBack={() => setMode("list")} />
+    );
+  }
   // === Mode Liste ===
   return (
     <SafeAreaView style={styles.container}>
