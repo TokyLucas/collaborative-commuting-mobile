@@ -94,9 +94,9 @@ export default function DemandeAjoutScreen({ onCancel, onSuccess }: Props) {
       const demandeId = result?.id || result?._id;
       if (demandeId) {
         onSuccess(demandeId);
+        Alert.alert("Succès", "Demande créée avec succès !");
       } else {
-        Alert.alert("Succès", "Demande créée !");
-        onSuccess();
+        Alert.alert("Erreur", "Impossible de créer la demande.");
       }
     } catch (err) {
       console.error("Erreur:", err);
