@@ -33,11 +33,6 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/shared-testutil/gradle-plugin-root.shared-testutil.test.iml" filepath="$PROJECT_DIR$/.idea/modules/shared-testutil/gradle-plugin-root.shared-testutil.test.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/shared/gradle-plugin-root.shared.main.iml" filepath="$PROJECT_DIR$/.idea/modules/shared/gradle-plugin-root.shared.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/shared/gradle-plugin-root.shared.test.iml" filepath="$PROJECT_DIR$/.idea/modules/shared/gradle-plugin-root.shared.test.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/react-native-edge-to-edge.android.iml" filepath="$PROJECT_DIR$/.idea/modules/react-native-edge-to-edge.android.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/react-native-edge-to-edge.android.androidTest.iml" filepath="$PROJECT_DIR$/.idea/modules/react-native-edge-to-edge.android.androidTest.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/react-native-edge-to-edge.android.main.iml" filepath="$PROJECT_DIR$/.idea/modules/react-native-edge-to-edge.android.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/react-native-edge-to-edge.android.unitTest.iml" filepath="$PROJECT_DIR$/.idea/modules/react-native-edge-to-edge.android.unitTest.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/react-native-reanimated.android.iml" filepath="$PROJECT_DIR$/.idea/modules/react-native-reanimated.android.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/react-native-reanimated.android.androidTest.iml" filepath="$PROJECT_DIR$/.idea/modules/react-native-reanimated.android.androidTest.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/react-native-reanimated.android.main.iml" filepath="$PROJECT_DIR$/.idea/modules/react-native-reanimated.android.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/react-native-reanimated.android.unitTest.iml" filepath="$PROJECT_DIR$/.idea/modules/react-native-reanimated.android.unitTest.iml" />
