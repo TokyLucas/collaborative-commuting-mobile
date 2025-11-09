@@ -17,5 +17,5 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "nativewind-env.d.ts"
-, "app/(authorized)/(profile)/exemple-chat.js"  ]
+, "app/(authorized)/Chat.tsx"  ]
 }
