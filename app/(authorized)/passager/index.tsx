@@ -1,6 +1,7 @@
 import DemandeAjoutScreen from "@/components/DemandeAjoutScreen";
 import { useAuthSession } from "@/providers/AuthProvider";
 import DemandeService from "@/services/DemandeService";
+import { useNavigation } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,6 +18,9 @@ export default function PassagerIndexScreen() {
   const [demandes, setDemandes] = useState<any[]>([]);
   const [mode, setMode] = useState<"add" | "list">("list");
   const [loading, setLoading] = useState(false);
+
+  const navigation: any = useNavigation();
+
 
   const fetchDemandes = async () => {
     if (!user?.current || !token?.current) return;
@@ -36,13 +40,20 @@ export default function PassagerIndexScreen() {
     fetchDemandes();
   }, []);
 
-  // === Mode Ajout ===
   if (mode === "add") {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
         <DemandeAjoutScreen
           onCancel={() => setMode("list")}
-          onSuccess={() => setMode("list")}
+          onSuccess={(demandeId) => {
+            if (demandeId) {
+              // demande créée → redirection vers MatchingScreen
+              navigation.navigate("Matching", { demandeId });
+            } else {
+              // pas d'ID → revenir à la liste
+              setMode("list");
+            }
+          }}
         />
       </SafeAreaView>
     );
