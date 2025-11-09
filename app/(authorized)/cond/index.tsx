@@ -13,48 +13,55 @@ import {
   View,
 } from "react-native";
 
-import { useAuthSession } from '@/providers/AuthProvider';
 import TrajetAjoutScreen from "../../../components/TrajetAjoutScreen";
 import TrajetDetailModal from "../../../components/TrajetDetailModal";
 import TrajetUpdateScreen from "../../../components/TrajetUpdateScreen";
-import { TrajetVoiture } from "../../../models/TrajetVoiture";
+import { TrajetConducteur } from "../../../models/TrajetConducteur";
 import TrajetConducteurService from "../../../services/TrajetConducteurService";
+
 type Mode = "list" | "add" | "update";
 
 export default function AccueilScreen() {
-  const [trajets, setTrajets] = useState<TrajetVoiture[]>([]);
+  const [trajets, setTrajets] = useState<TrajetConducteur[]>([]);
   const [mode, setMode] = useState<Mode>("list");
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const { token, user } = useAuthSession();
+
   const [showPlacesModal, setShowPlacesModal] = useState(false);
   const [placesInput, setPlacesInput] = useState("");
   const [currentTrajetId, setCurrentTrajetId] = useState<string | null>(null);
 
   // ——— récupérer la liste des trajets ———
-  
-const fetchTrajets = useCallback(async () => {
-  try {
-    if (!token?.current || !user?.current) return;
+  const fetchTrajets = useCallback(async () => {
+    try {
+      const token = await SecureStore.getItemAsync("userToken");
+      if (!token) return;
 
-    console.log("Appel API:", `${TrajetConducteurService.API_URL}/api/trajetC/conducteur/${user.current}`);
+      const response = await TrajetConducteurService.getAllView(token);
+      const data = await response.json();
 
-    const response = await TrajetConducteurService.getByConducteurId(user.current, token.current);
-    const data = await response.json();
+      if (!response.ok) {
+        console.error("Erreur fetch:", data?.message || "Erreur inconnue");
+        return;
+      }
 
-    console.log("Réponse API trajets du conducteur:", data);
+      // filtrage logique : seulement trajets actifs et non désactivés temporairement
+      const today = new Date();
+      const trajetsFiltres = (Array.isArray(data) ? data : []).filter((t: TrajetConducteur) => {
+        const actif = t.actif === 1 || t.actif === null;
+        const debut = t.dateDesactivationDebut ? new Date(t.dateDesactivationDebut) : null;
+        const fin = t.dateDesactivationFin ? new Date(t.dateDesactivationFin) : null;
+        const desactiveTemporaire =
+          debut && fin && today >= debut && today <= fin;
+        return actif && !desactiveTemporaire;
+      });
 
-    if (!response.ok) {
-      console.error("Erreur fetch:", data?.message || "Erreur inconnue");
-      return;
+      setTrajets(trajetsFiltres);
+    } catch (e) {
+      console.error("Erreur API:", e);
     }
-
-    setTrajets(Array.isArray(data) ? data : []);
-  } catch (e) {
-    console.error("Erreur API:", e);
-  }
-}, [user, token]);
+  }, []);
 
   useEffect(() => {
     fetchTrajets();
@@ -86,14 +93,6 @@ const fetchTrajets = useCallback(async () => {
     try {
       const token = await SecureStore.getItemAsync("userToken");
       if (!token) return;
-
-      if (nouveauStatut === "EN_ROUTE") {
-        for (const t of trajets) {
-          if (t.id !== id && t.statut === "EN_ROUTE") {
-            await changerStatut(t.id, "PREVU");
-          }
-        }
-      }  
 
       const dto: any = { statut: nouveauStatut };
       if (placesDispoJournalier != null) dto.placesDispoJournalier = placesDispoJournalier;
@@ -143,7 +142,7 @@ const fetchTrajets = useCallback(async () => {
       return;
     }
     setShowPlacesModal(false);
-    await changerStatut(currentTrajetId, "EN_ROUTE", nb);
+    await changerStatut(currentTrajetId, "En route", nb);
     setCurrentTrajetId(null);
   };
 
@@ -176,9 +175,6 @@ const fetchTrajets = useCallback(async () => {
       </SafeAreaView>
     );
   }
-
-  const trajetEnRoute = trajets.find(t => t.statut === "EN_ROUTE");
-  const canalId = trajetEnRoute?.id;
 
   // ——— vue "Liste" ———
   return (
@@ -222,7 +218,7 @@ const fetchTrajets = useCallback(async () => {
                 <Text style={{ marginTop: 6 }}>Véhicule : {vehiculeLabel}</Text>
 
                 <View style={styles.actionRow}>
-                  {!isDisabled && item.statut === "PREVU" && (
+                  {!isDisabled && item.statut === "Prévu" && (
                     <TouchableOpacity
                       style={styles.iconBtn}
                       onPress={() => openPlacesModal(item.id)}
@@ -238,7 +234,7 @@ const fetchTrajets = useCallback(async () => {
                     <Text style={styles.icon}>🔍</Text>
                   </TouchableOpacity>
 
-                  {!isDisabled && item.statut !== "TERMINE" && (
+                  {!isDisabled && item.statut !== "Terminé" && (
                     <>
                       <TouchableOpacity
                         style={styles.iconBtn}
@@ -255,10 +251,10 @@ const fetchTrajets = useCallback(async () => {
                     </>
                   )}
 
-                  {item.statut === "EN_ROUTE" && !isDisabled && (
+                  {item.statut === "En route" && !isDisabled && (
                     <TouchableOpacity
                       style={styles.iconBtn}
-                      onPress={() => changerStatut(item.id, "TERMINE")}
+                      onPress={() => changerStatut(item.id, "Terminé")}
                     >
                       <Text style={styles.icon}>🔴</Text>
                     </TouchableOpacity>
