@@ -4,134 +4,179 @@ import io from 'socket.io-client'
 export default function LocationChannel() {
   const SIGNALING_URL = process.env.EXPO_PUBLIC_SIGNALING_BASEURL || ''
   let socket = null
+  let hasHandlers = false
   let peer = null
   let dataChannel = null
   let otherUser = null
   let onLocationRequest = null
   let onCoords = null
   let pendingCandidates = []
+  let isChannelReady = false
+  let onReady = null
+  let joinedRoom = false
+  let isInitiator = false
 
   const setOnLocationRequest = (cb) => { onLocationRequest = cb }
   const setOnCoords = (cb) => { onCoords = cb }
+  const setOnReady = (cb) => { onReady = cb }
 
   const connect = () => {
-    socket = io.connect(SIGNALING_URL)
+    if (socket && (socket.connected || socket.active)) return
+    if (!SIGNALING_URL) return
+    if (!socket) {
+      socket = io(SIGNALING_URL, {
+        transports: ['websocket'],
+        autoConnect: true,
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+      })
+      attachSocketHandlers()
+    } else {
+      if (!hasHandlers) attachSocketHandlers()
+      socket.connect()
+    }
+  }
+
+  const attachSocketHandlers = () => {
+    if (!socket || hasHandlers) return
+    hasHandlers = true
+
     socket.on('connect', () => {
-      console.log('[INFO] Connected to signaling server')
-      socket.emit('join room', 'location-room')
+      if (!joinedRoom) {
+        socket.emit('join room', 'location-room')
+        joinedRoom = true
+      }
     })
-    socket.on('disconnect', () => {
-      console.log('[INFO] Disconnected')
-      close()
-    })
+
     socket.on('other user', (userID) => {
-      console.log('[INFO] Other user found:', userID)
+      if (!userID || userID === socket.id) return
       otherUser = userID
-      callUser(userID)
+      isInitiator = true
+      if (!peer) callUser(userID)
     })
+
     socket.on('user joined', (userID) => {
-      console.log('[INFO] User joined:', userID)
+      if (!userID || userID === socket.id) return
       otherUser = userID
+      isInitiator = false
     })
-    socket.on('user left', () => {
-      console.log('[INFO] User left')
-      close()
+
+    socket.on('user left', (userID) => {
+      if (!userID || userID !== otherUser) return
+      otherUser = null
+      isInitiator = false
+      softResetPeer()
     })
-    socket.on('offer', handleOffer)
-    socket.on('answer', handleAnswer)
-    socket.on('ice-candidate', handleNewICECandidateMsg)
+
+    socket.on('offer', (msg) => {
+      if (!msg || msg.caller === socket.id || msg.target !== socket.id) return
+      handleOffer(msg)
+    })
+
+    socket.on('answer', (msg) => {
+      if (!msg || msg.caller === socket.id || msg.target !== socket.id) return
+      handleAnswer(msg)
+    })
+
+    socket.on('ice-candidate', (msg) => {
+      if (!msg || msg.caller === socket.id || msg.target !== socket.id) return
+      handleNewICECandidateMsg(msg)
+    })
   }
 
   const Peer = (userID) => {
-    const peerConn = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.stunprotocol.org' },
-        {
-          urls: 'turn:numb.viagenie.ca',
-          credential: 'muazkh',
-          username: 'webrtc@live.com',
-        },
-      ],
-    })
+    const peerConn = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] })
     peerConn.onicecandidate = handleICECandidateEvent
+    peerConn.ondatachannel = (event) => setupDataChannel(event.channel)
     peerConn.onconnectionstatechange = () => {
-      console.log('[INFO] Connection state:', peerConn.connectionState)
-      if (peerConn.connectionState === 'disconnected' || peerConn.connectionState === 'failed') {
-        close()
+      const s = peerConn.connectionState
+      if (s === 'connected') {
+        isChannelReady = true
+        onReady && onReady(true)
+      } else if (s === 'disconnected') {
+        onReady && onReady(false)
+      } else if (s === 'failed') {
+        onReady && onReady(false)
+      } else if (s === 'closed') {
+        isChannelReady = false
+        onReady && onReady(false)
       }
     }
-    if (userID) {
-      peerConn.onnegotiationneeded = () => handleNegotiationNeededEvent(userID)
-    }
+    if (userID) peerConn.onnegotiationneeded = () => handleNegotiationNeededEvent(userID)
     return peerConn
   }
 
-  const callUser = (userID) => {
-    peer = Peer(userID)
-    dataChannel = peer.createDataChannel('location')
+  const setupDataChannel = (channel) => {
+    dataChannel = channel
     dataChannel.onmessage = handleReceiveMessage
-    dataChannel.onopen = () => console.log('[SUCCESS] Data channel opened')
-    dataChannel.onclose = () => console.log('[INFO] Data channel closed')
+    dataChannel.onopen = () => {
+      isChannelReady = true
+      onReady && onReady(true)
+    }
+    dataChannel.onclose = () => {
+      isChannelReady = false
+      onReady && onReady(false)
+    }
+  }
+
+  const callUser = (userID) => {
+    if (peer) return
+    peer = Peer(userID)
+    const dc = peer.createDataChannel('location')
+    setupDataChannel(dc)
   }
 
   const handleNegotiationNeededEvent = (userID) => {
+    if (!peer || !socket || !isInitiator) return
     peer.createOffer()
       .then((offer) => peer.setLocalDescription(offer))
       .then(() => {
-        socket.emit('offer', {
-          target: userID,
-          caller: socket.id,
-          sdp: peer.localDescription,
-        })
+        socket.emit('offer', { target: userID, caller: socket.id, sdp: peer.localDescription })
       })
       .catch((err) => console.error('Negotiation error:', err))
   }
 
   const handleOffer = (incoming) => {
+    if (peer) return
+    otherUser = incoming.caller
+    isInitiator = false
     peer = Peer()
-    peer.ondatachannel = (event) => {
-      dataChannel = event.channel
-      dataChannel.onmessage = handleReceiveMessage
-      dataChannel.onopen = () => console.log('[SUCCESS] Connection established')
-      dataChannel.onclose = () => console.log('[INFO] Data channel closed')
-    }
     const desc = new RTCSessionDescription(incoming.sdp)
     peer.setRemoteDescription(desc)
       .then(() => peer.createAnswer())
       .then((answer) => peer.setLocalDescription(answer))
       .then(() => {
-        socket.emit('answer', {
-          target: incoming.caller,
-          caller: socket.id,
-          sdp: peer.localDescription,
-        })
-        pendingCandidates.forEach(c => peer.addIceCandidate(c))
-        pendingCandidates = []
+        socket.emit('answer', { target: incoming.caller, caller: socket.id, sdp: peer.localDescription })
+        if (pendingCandidates.length) {
+          pendingCandidates.forEach(c => peer.addIceCandidate(c).catch(() => {}))
+          pendingCandidates = []
+        }
       })
       .catch((e) => console.error('Offer handling error:', e))
   }
 
   const handleAnswer = (message) => {
+    if (!peer) return
     const desc = new RTCSessionDescription(message.sdp)
     peer.setRemoteDescription(desc)
       .then(() => {
-        pendingCandidates.forEach(c => peer.addIceCandidate(c))
-        pendingCandidates = []
+        if (pendingCandidates.length) {
+          pendingCandidates.forEach(c => peer.addIceCandidate(c).catch(() => {}))
+          pendingCandidates = []
+        }
       })
       .catch((e) => console.error('Answer error:', e))
   }
 
   const handleICECandidateEvent = (e) => {
-    if (e.candidate) {
-      socket.emit('ice-candidate', {
-        target: otherUser,
-        candidate: e.candidate,
-      })
+    if (e.candidate && otherUser) {
+      socket.emit('ice-candidate', { target: otherUser, candidate: e.candidate, caller: socket.id })
     }
   }
 
   const handleNewICECandidateMsg = (incoming) => {
-    const candidate = new RTCIceCandidate(incoming)
+    const payload = incoming.candidate || incoming
+    const candidate = new RTCIceCandidate(payload)
     if (peer && peer.remoteDescription) {
       peer.addIceCandidate(candidate).catch((e) => console.error('ICE error:', e))
     } else {
@@ -140,61 +185,43 @@ export default function LocationChannel() {
   }
 
   const handleReceiveMessage = (e) => {
-    console.log('[INFO] Location message received:', e.data)
     try {
       const msg = JSON.parse(e.data)
-      if (msg.type === 'coords') {
-        console.log('Received coords:', msg.lat, msg.lng)
-        onCoords && onCoords(msg.lat, msg.lng)
-      } else if (msg.type === 'location-request') {
-        console.log('Received location request')
-        onLocationRequest && onLocationRequest()
-      }
-    } catch (err) {
-      console.error('Parse error:', err)
-    }
+      if (msg.type === 'coords') onCoords && onCoords(msg.lat, msg.lng)
+      else if (msg.type === 'location-request') onLocationRequest && onLocationRequest()
+    } catch {}
   }
 
   const sendLocation = (lat, lng) => {
-    if (dataChannel && dataChannel.readyState === 'open') {
+    if (isChannelReady && dataChannel?.readyState === 'open') {
       dataChannel.send(JSON.stringify({ type: 'coords', lat, lng }))
-    } else {
-      console.warn('[WARN] Data channel not open: cannot send coords')
     }
   }
 
   const requestLocation = () => {
-    if (dataChannel && dataChannel.readyState === 'open') {
+    if (isChannelReady && dataChannel?.readyState === 'open') {
       dataChannel.send(JSON.stringify({ type: 'location-request' }))
-    } else {
-      console.warn('[WARN] Data channel not open: cannot request location')
     }
   }
 
+  const softResetPeer = () => {
+    try { dataChannel?.close() } catch {}
+    dataChannel = null
+    try { peer?.close() } catch {}
+    peer = null
+    isChannelReady = false
+    onReady && onReady(false)
+    pendingCandidates = []
+  }
+
+  const resetPeer = () => {
+    softResetPeer()
+  }
+
   const close = () => {
-    try {
-      if (dataChannel) {
-        dataChannel.close()
-        dataChannel = null
-      }
-      if (peer) {
-        peer.close()
-        peer = null
-      }
-      otherUser = null
-      if (socket) {
-        socket.off('offer')
-        socket.off('answer')
-        socket.off('ice-candidate')
-        socket.off('other user')
-        socket.off('user joined')
-        socket.off('user left')
-        socket.disconnect()
-        socket = null
-      }
-    } catch (e) {
-      console.error('Close error:', e)
-    }
+    softResetPeer()
+    otherUser = null
+    isInitiator = false
   }
 
   return {
@@ -204,5 +231,7 @@ export default function LocationChannel() {
     close,
     setOnLocationRequest,
     setOnCoords,
+    isChannelReady: () => isChannelReady,
+    setOnReady,
   }
 }

@@ -3,7 +3,7 @@ import { useAuthSession } from '@/providers/AuthProvider'
 import { Ionicons } from '@expo/vector-icons'
 import * as Location from 'expo-location'
 import React, { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Dimensions, StyleSheet, Text, TouchableOpacity } from 'react-native'
+import { ActivityIndicator, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { WebView } from 'react-native-webview'
 import CarService from '../../../services/CarService'
 import LocationChannel from '../../../services/LocationChannel'
@@ -37,14 +37,29 @@ export default function ExploreScreen() {
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null)
   const [markers, setMarkers] = useState<Marker[]>([])
   const [loading, setLoading] = useState(true)
-  const [showPopup, setShowPopup] = useState(false)
-  const channel = LocationChannel()
   const [disponibilite, setDisponibilite] = useState<any | null>(null)
-
+  const channelRef = useRef(LocationChannel())
+  const channel = channelRef.current
   
+  const [ready, setReady] = useState(false)
   useEffect(() => {
-    channel.connect();
-  }, []);
+    channel.setOnReady(setReady)
+    channel.setOnCoords((lat: number, lng: number) => {
+      if (userLocation && webRef.current) {
+        webRef.current.postMessage(JSON.stringify({
+          type: 'draw-route',
+          fromLat: userLocation.latitude,
+          fromLng: userLocation.longitude,
+          toLat: lat,
+          toLng: lng,
+        }))
+      }
+    })
+    channel.connect()
+    return () => channel.close()
+  }, [channel, userLocation])
+    
+
 
   useEffect(() => {
     let subscription: Location.LocationSubscription
@@ -167,9 +182,10 @@ export default function ExploreScreen() {
               console.log("Ligne rouge tracée entre:", from, "et", to);
             }
           } catch (err) {
-            console.error("Erreur draw-route:", err);
+            console.error("Erreur message handler:", err);
           }
         });
+
       </script>
     </body>
   </html>
@@ -186,37 +202,75 @@ export default function ExploreScreen() {
   return (
     <ThemedView style={styles.container}>
       {loading && <ActivityIndicator style={styles.loaderOverlay} size="large" />}
-      {!loading && userLocation && (
+  
+      {!loading && userLocation && leafletHTML ? (
         <WebView
           ref={webRef}
           originWhitelist={['*']}
           source={{ html: leafletHTML }}
           style={styles.map}
         />
+      ) : (
+        !loading && <Text style={{ textAlign: 'center', marginTop: 20 }}>Chargement de la carte...</Text>
       )}
-      
-
-      <TouchableOpacity style={styles.requestBtn} onPress={() => channel.requestLocation()}>
-        <Ionicons name="navigate-outline" size={20} color="#fff" />
-        <Text style={styles.btnText}>Demander</Text>
-      </TouchableOpacity>
-
-        {disponibilite?.position?.coordinates && (
+  
+      <View style={styles.bottomPanel}>
+      <View style={styles.actionsRow}>
+        <View style={styles.btnWrapper}>
           <TouchableOpacity
+            style={[styles.requestBtn, !ready && { opacity: 0.5 }]}
+            // Demander: envoie une requête seulement si le dataChannel est prêt
             onPress={() => {
-              const [lng, lat] = disponibilite.position.coordinates
-              channel.sendLocation(lat, lng)
+              if (!ready) return
+              channel.requestLocation()
             }}
+            disabled={!ready}
           >
-            <Text>Envoyer ma localisation</Text>
+            <Ionicons name="navigate-outline" size={24} color="#fff" />
           </TouchableOpacity>
-        )}
+          <Text style={styles.btnLabel}>Demander</Text>
+        </View>
 
-        <TouchableOpacity style={styles.recenterBtn} onPress={recenter}>
-          <Ionicons name="locate-outline" size={28} color="#fff" />
-        </TouchableOpacity>
-        </ThemedView>
-    )
+        <View style={styles.btnWrapper}>
+          <TouchableOpacity
+            style={[styles.sendBtn, !ready && { opacity: 0.5 }]}
+            onPress={async () => {
+              if (!ready) return
+              try {
+                const { status } = await Location.requestForegroundPermissionsAsync()
+                if (status !== 'granted') {
+                  console.warn('[WARN] Permission de localisation refusée')
+                  return
+                }
+                const loc = await Location.getCurrentPositionAsync({
+                  accuracy: Location.Accuracy.Highest,
+                })
+                const lat = loc.coords.latitude
+                const lng = loc.coords.longitude
+                channel.sendLocation(lat, lng)
+              } catch (e) {
+                console.error('Erreur getCurrentPositionAsync:', e)
+              }
+            }}
+            disabled={!ready}
+          >
+            <Ionicons name="send-outline" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.btnLabel}>Envoyer</Text>
+        </View>
+
+        <View style={styles.btnWrapper}>
+          <TouchableOpacity style={styles.recenterBtn} onPress={recenter}>
+            <Ionicons name="locate-outline" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.btnLabel}>Centre</Text>
+        </View>
+      </View>
+
+      </View>
+    </ThemedView>
+  )
+  
 }
 
 const { width } = Dimensions.get('window')
@@ -224,103 +278,63 @@ const { width } = Dimensions.get('window')
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 },
+  bottomPanel: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    elevation: 10,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'flex-end',
+    paddingTop: 6,
+  },
+  btnWrapper: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  btnLabel: {
+    fontSize: 12,
+    color: '#2ECC71',
+    textAlign: 'center',
+    lineHeight: 14,
+  },
+  requestBtn: {
+    backgroundColor: '#58D68D',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sendBtn: {
+    backgroundColor: '#28B463',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recenterBtn: {
+    backgroundColor: '#2ECC71',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   loaderOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(255,255,255,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  pokeBtn: {
-    position: 'absolute',
-    bottom: 80,
-    right: 20,
-    backgroundColor: '#FF2D55',
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-  },
-  recenterBtn: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    backgroundColor: '#007AFF',
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-  },
-  warningBtn: {
-    position: 'absolute',
-    bottom: 140,
-    right: 20,
-    backgroundColor: '#FFA500',
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-  },
-  popup: {
-    position: 'absolute',
-    bottom: 200,
-    right: 20,
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 8,
-    elevation: 6,
-    flexDirection: 'row',
-    gap: 12,
-  },
-  popupText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  popupActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    flex: 1,
-  },
-  acceptBtn: {
-    backgroundColor: '#4CAF50',
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  rejectBtn: {
-    backgroundColor: '#FF2D55',
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  requestBtn: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    backgroundColor: '#FF9500',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    marginLeft: 8,
-    textAlign: 'center',
-  },
-  
 })
-
