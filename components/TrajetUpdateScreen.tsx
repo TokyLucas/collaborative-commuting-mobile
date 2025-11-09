@@ -13,7 +13,6 @@ import {
   View,
 } from "react-native";
 import { Car } from "../models/Car";
-import { TrajetConducteur } from "../models/TrajetConducteur";
 import CarService from "../services/CarService";
 import TrajetConducteurService from "../services/TrajetConducteurService";
 import MapPickerModal from "./MapPickerModal";
@@ -28,13 +27,14 @@ type FieldBoxProps = React.ComponentProps<typeof TextInput> & {
   label: string;
   rightAdornment?: React.ReactNode;
 };
+
 function FieldBox({ label, rightAdornment, style, ...inputProps }: FieldBoxProps) {
   return (
     <View style={styles.box}>
       <Text style={styles.boxLabel} numberOfLines={1}>{label}</Text>
       <View style={styles.boxInner}>
         <TextInput {...inputProps} style={[styles.boxInput, style]} />
-        {rightAdornment ? <View style={styles.adornment}>{rightAdornment}</View> : null}
+        {rightAdornment ? <View>{rightAdornment}</View> : null}
       </View>
     </View>
   );
@@ -55,6 +55,7 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
 
   const [form, setForm] = useState({
     id: "",
+    idConducteur: "",
     pointDepart: "",
     latDepart: "",
     lngDepart: "",
@@ -63,55 +64,76 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
     lngArrivee: "",
     heureDepartEstimee: new Date(),
     placesDisponibles: "",
+    placesDispoJournalier: "",
     description: "",
     statut: "",
+    creeLe: "",
+    misAJourLe: "",
     dateDesactivationDebut: null as Date | null,
     dateDesactivationFin: null as Date | null,
     actif: 1,
   });
 
-  // Charger trajet + voitures utilisateur
+  // 🧩 Chargement des infos du trajet
   useEffect(() => {
-    (async () => {
-      const token = await SecureStore.getItemAsync("userToken");
-      if (!token || !trajetId) return;
+    const fetchData = async () => {
+      try {
+        const token = await SecureStore.getItemAsync("userToken");
+        if (!token || !trajetId) return;
 
-      const res = await TrajetConducteurService.getById(trajetId, token);
-      const data = await res.json();
-      if (!res.ok) {
-        Alert.alert("Erreur", data?.message || "Chargement impossible");
-        return;
+        const res = await TrajetConducteurService.getById(trajetId, token);
+        const data = await res.json();
+        if (!res.ok) {
+          Alert.alert("Erreur", data?.message || "Chargement impossible");
+          return;
+        }
+
+        // Chargement du form
+        setForm({
+          id: data.id || trajetId,
+          idConducteur: data.idConducteur || "",
+          pointDepart: data.pointDepart || "",
+          latDepart: String(data.latDepart ?? ""),
+          lngDepart: String(data.lngDepart ?? ""),
+          pointArrivee: data.pointArrivee || "",
+          latArrivee: String(data.latArrivee ?? ""),
+          lngArrivee: String(data.lngArrivee ?? ""),
+          heureDepartEstimee: new Date(data.heureDepartEstimee),
+          placesDisponibles: String(data.placesDisponibles ?? ""),
+          placesDispoJournalier: String(data.placesDispoJournalier ?? ""),
+          description: data.description || "",
+          statut: data.statut || "Prévu",
+          creeLe: data.creeLe || "",
+          misAJourLe: data.misAJourLe || "",
+          dateDesactivationDebut: data.dateDesactivationDebut ? new Date(data.dateDesactivationDebut) : null,
+          dateDesactivationFin: data.dateDesactivationFin ? new Date(data.dateDesactivationFin) : null,
+          actif: data.actif ?? 1,
+        });
+
+        setDesactivePermanent(data.actif === 0);
+
+        // Jours
+        const joursValides =
+          Array.isArray(data.jours) && data.jours.length > 0
+            ? data.jours.map((j: any) => Number(j))
+            : [1, 2, 3, 4, 5];
+        setJours(joursValides);
+
+        // Voitures
+        const userId = data.idConducteur;
+        const list = await CarService.getUserCars(userId, token);
+        setCars(list);
+        if (!data.voitureId && list.length) setSelectedCarId(list[0].id);
+        else setSelectedCarId(data.voitureId || "");
+      } catch (e) {
+        console.error(e);
       }
+    };
 
-      setForm({
-        id: data.id || trajetId,
-        pointDepart: data.pointDepart || "",
-        latDepart: String(data.latDepart ?? ""),
-        lngDepart: String(data.lngDepart ?? ""),
-        pointArrivee: data.pointArrivee || "",
-        latArrivee: String(data.latArrivee ?? ""),
-        lngArrivee: String(data.lngArrivee ?? ""),
-        heureDepartEstimee: new Date(data.heureDepartEstimee),
-        placesDisponibles: String(data.placesDisponibles ?? ""),
-        description: data.description || "",
-        statut: data.statut || "Prévu",
-        dateDesactivationDebut: data.dateDesactivationDebut ? new Date(data.dateDesactivationDebut) : null,
-        dateDesactivationFin: data.dateDesactivationFin ? new Date(data.dateDesactivationFin) : null,
-        actif: data.actif ?? 1,
-      });
-
-      setDesactivePermanent(data.actif === 0);
-      setJours(data.jours || []); // pré-cochage des jours
-      setSelectedCarId(data.voitureId || "");
-
-      // Récupération voitures utilisateur
-      const userId = data.idConducteur;
-      const list = await CarService.getUserCars(userId, token);
-      setCars(list);
-      if (!data.voitureId && list.length) setSelectedCarId(list[0].id);
-    })();
+    fetchData();
   }, [trajetId]);
 
+  // ✅ Envoi mise à jour
   const handleUpdate = async () => {
     try {
       const token = await SecureStore.getItemAsync("userToken");
@@ -122,6 +144,10 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
       const latArrivee = Number(form.latArrivee);
       const lngArrivee = Number(form.lngArrivee);
       const placesDisponibles = Number.parseInt(form.placesDisponibles || "0", 10);
+      const placesDispoJournalier =
+        form.placesDispoJournalier && form.placesDispoJournalier !== ""
+          ? Number.parseInt(form.placesDispoJournalier, 10)
+          : placesDisponibles;
 
       if ([latDepart, lngDepart, latArrivee, lngArrivee].some(Number.isNaN)) {
         Alert.alert("Coordonnées manquantes", "Choisis départ et arrivée via les cartes.");
@@ -132,26 +158,32 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
         return;
       }
 
-      const dto: Omit<TrajetConducteur, "id"> & { voitureId: string } = {
-        idConducteur: "",
-        pointDepart: form.pointDepart.trim(),
-        latDepart, lngDepart,
-        pointArrivee: form.pointArrivee.trim(),
-        latArrivee, lngArrivee,
-        heureDepartEstimee: form.heureDepartEstimee.toISOString(),
-        placesDisponibles,
-        description: form.description.trim(),
-        statut: form.statut || "Prévu",
-        actif: desactivePermanent ? 0 : 1,
-        voitureId: selectedCarId,
-        jours: jours.length ? jours : null,
-        dateDesactivationDebut: form.dateDesactivationDebut
-          ? form.dateDesactivationDebut.toISOString().split("T")[0]
-          : null,
-        dateDesactivationFin: form.dateDesactivationFin
-          ? form.dateDesactivationFin.toISOString().split("T")[0]
-          : null,
-      } as any;
+      const dto = {
+  idConducteur: form.idConducteur,
+  pointDepart: form.pointDepart.trim(),
+  latDepart: Number(form.latDepart),
+  lngDepart: Number(form.lngDepart),
+  pointArrivee: form.pointArrivee.trim(),
+  latArrivee: Number(form.latArrivee),
+  lngArrivee: Number(form.lngArrivee),
+  heureDepartEstimee: form.heureDepartEstimee.toISOString().split("Z")[0],
+  placesDisponibles: Number(form.placesDisponibles),
+  placesDispoJournalier: Number(form.placesDispoJournalier || form.placesDisponibles),
+  description: form.description.trim(),
+  statut: form.statut || "Prévu",
+  actif: desactivePermanent ? 0 : 1,
+  voitureId: selectedCarId,
+  jours: jours,
+  dateDesactivationDebut: form.dateDesactivationDebut
+    ? form.dateDesactivationDebut.toISOString().split("T")[0]
+    : null,
+  dateDesactivationFin: form.dateDesactivationFin
+    ? form.dateDesactivationFin.toISOString().split("T")[0]
+    : null,
+};
+
+
+      console.log("DTO envoyé:", dto);
 
       const response = await TrajetConducteurService.updateTrajet(form.id, dto, token);
       const result = await response.json();
@@ -172,7 +204,9 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
     <View style={{ flex: 1, backgroundColor: "#fff" }}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Modifier trajet</Text>
-        <TouchableOpacity onPress={onCancel}><Text style={styles.headerClose}>✕</Text></TouchableOpacity>
+        <TouchableOpacity onPress={onCancel}>
+          <Text style={styles.headerClose}>✕</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
@@ -195,7 +229,7 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
           label="Point de départ"
           value={form.pointDepart}
           onChangeText={(t) => setForm({ ...form, pointDepart: t })}
-          placeholder="Ex : Antaninarenina"
+          placeholder="Ex : Ankorondrano"
           rightAdornment={
             <TouchableOpacity style={styles.iconBtn} onPress={() => setMapDepartVisible(true)}>
               <Image source={pinRed} style={styles.pinIcon} />
@@ -255,10 +289,10 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
           </View>
         </View>
 
-        {/* Sélecteur de jours */}
+        {/* Jours */}
         <Text style={[styles.boxLabel, { marginTop: 10 }]}>Jours de trajet</Text>
         <View style={{ flexDirection: "row", justifyContent: "center", gap: 6, marginBottom: 12 }}>
-          {["L", "M", "M", "J", "V", "S", "D"].map((label, i) => {
+          {["L", "Ma", "Me", "J", "V", "S", "D"].map((label, i) => {
             const index = i + 1;
             const selected = jours.includes(index);
             return (
@@ -291,7 +325,7 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
           label="Description"
           value={form.description}
           onChangeText={(t) => setForm({ ...form, description: t })}
-          placeholder="Ex : Trajet direct"
+          placeholder="Ex : Trajet domicile-travail"
           multiline
         />
 
@@ -300,7 +334,7 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
         <View style={styles.box}>
           <TouchableOpacity onPress={() => setDesactivePermanent(!desactivePermanent)}>
             <Text style={{ padding: 10 }}>
-              {desactivePermanent ? "🔴 Désactivation permanente (actif=0)" : "🟢 Actif (actif=1)"}
+              {desactivePermanent ? "🔴 Désactivation permanente " : "🟢 Actif "}
             </Text>
           </TouchableOpacity>
 
@@ -352,7 +386,7 @@ export default function TrajetUpdateScreen({ trajetId, onCancel, onSuccess }: Pr
         </View>
       </ScrollView>
 
-      {/* Modals cartes */}
+      {/* Modals carte */}
       <MapPickerModal
         visible={mapDepartVisible}
         title="Choisir le point de départ"
@@ -389,7 +423,6 @@ const styles = StyleSheet.create({
   boxLabel: { fontSize: 12, color: "#6B7280", paddingTop: 8, paddingHorizontal: 12 },
   boxInner: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingBottom: 10, paddingTop: 2, gap: 8 },
   boxInput: { flex: 1, fontSize: 16, paddingVertical: 8 },
-  adornment: {},
   btn: { backgroundColor: "#4A90E2", paddingVertical: 12, borderRadius: 10, alignItems: "center" },
   btnText: { color: "#fff", fontWeight: "600" },
   cancel: { backgroundColor: "#999" },

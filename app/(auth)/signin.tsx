@@ -186,7 +186,7 @@ export default function SignInScreen() {
                         )}
                     </Button>
                 </VStack>
-                <Link href="/cond" style={styles.link}>
+                <Link href="/(auth)/signup" style={styles.link}>
                     <ThemedText type="link">Inscrire ?</ThemedText>
                 </Link>
             </ThemedView>
