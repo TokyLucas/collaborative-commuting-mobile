@@ -14,12 +14,17 @@ export default function ExploreScreen() {
   const [loading, setLoading] = useState(true)
   const [disponibilite, setDisponibilite] = useState<any | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [showPopup, setShowPopup] = useState(false)
   const [trajetEnRoute, setTrajetEnRoute] = useState<any | null>(null)
-  const channel = LocationChannel()
+
+  const channelRef = useRef(LocationChannel())
+  const channel = channelRef.current
+  
+  const [ready, setReady] = useState(false)
   useEffect(() => {
+    channel.setOnReady(setReady)
     channel.connect()
-  }, [])
+    return () => channel.close()
+  }, [channel])
 
   useEffect(() => {
     const fetchDisponibilite = async () => {
@@ -259,46 +264,43 @@ export default function ExploreScreen() {
         )}
   
         <View style={styles.actionsRow}>
-          {disponibilite && (
-            <View style={styles.btnWrapper}>
-              <TouchableOpacity style={styles.toggleBtn} onPress={toggleDisponibilite}>
-                <Ionicons name="power-outline" size={24} color="#fff" />
-              </TouchableOpacity>
-              <Text style={styles.btnLabel}>Actif</Text>
-            </View>
-          )}
-  
-          {disponibilite && (
-            <View style={styles.btnWrapper}>
-              <TouchableOpacity style={styles.updateBtn} onPress={updatePosition}>
-                <Ionicons name="refresh-outline" size={24} color="#fff" />
-              </TouchableOpacity>
-              <Text style={styles.btnLabel}>Maj</Text>
-            </View>
-          )}
-  
           <View style={styles.btnWrapper}>
-            <TouchableOpacity style={styles.requestBtn} onPress={() => channel.requestLocation()}>
+            <TouchableOpacity style={styles.toggleBtn} onPress={toggleDisponibilite}>
+              <Ionicons name="power-outline" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.btnLabel}>Actif</Text>
+          </View>
+
+          <View style={styles.btnWrapper}>
+            <TouchableOpacity style={styles.updateBtn} onPress={updatePosition}>
+              <Ionicons name="refresh-outline" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.btnLabel}>Maj</Text>
+          </View>
+
+          <View style={styles.btnWrapper}>
+            <TouchableOpacity style={[styles.requestBtn, !ready && { opacity: 0.5 }]}
+              onPress={() => ready && channel.requestLocation()}
+              disabled={!ready}>
               <Ionicons name="navigate-outline" size={24} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.btnLabel}>Demander</Text>
           </View>
-  
-          {disponibilite?.position?.coordinates && (
-            <View style={styles.btnWrapper}>
-              <TouchableOpacity
-                style={styles.sendBtn}
-                onPress={() => {
+
+          <View style={styles.btnWrapper}>
+            <TouchableOpacity style={[styles.sendBtn, !ready && { opacity: 0.5 }]}
+              onPress={() => {
+                if (ready && disponibilite?.position?.coordinates) {
                   const [lng, lat] = disponibilite.position.coordinates
                   channel.sendLocation(lat, lng)
-                }}
-              >
-                <Ionicons name="send-outline" size={24} color="#fff" />
-              </TouchableOpacity>
-              <Text style={styles.btnLabel}>Envoyer</Text>
-            </View>
-          )}
-  
+                }
+              }}
+              disabled={!ready}>
+              <Ionicons name="send-outline" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.btnLabel}>Envoyer</Text>
+          </View>
+
           <View style={styles.btnWrapper}>
             <TouchableOpacity style={styles.recenterBtn} onPress={recenter}>
               <Ionicons name="locate-outline" size={24} color="#fff" />
@@ -306,6 +308,7 @@ export default function ExploreScreen() {
             <Text style={styles.btnLabel}>Centre</Text>
           </View>
         </View>
+
   
         {!disponibilite && (
           <View style={styles.btnWrapper}>
@@ -382,6 +385,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
+    opacity: 1,
   },
   sendBtn: {
     backgroundColor: '#28B463',
@@ -390,6 +394,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
+    opacity: 1,
   },
   recenterBtn: {
     backgroundColor: '#2ECC71',
