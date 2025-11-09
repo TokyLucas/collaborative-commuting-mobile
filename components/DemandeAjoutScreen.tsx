@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+import MapView, { Marker } from "react-native-maps";
 import { Demande } from "../models/Demande";
 import DemandeService from "../services/DemandeService";
 
@@ -21,27 +22,25 @@ type Props = {
 export default function DemandeAjoutScreen({ onCancel, onSuccess }: Props) {
   const { user, token } = useAuthSession();
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const pinRed = require("../assets/images/pin-red.png");
 
   const [form, setForm] = useState({
     pointDepart: "",
     departLatitude: "",
     departLongitude: "",
     pointArrivee: "",
-    arriveeLatitude: "",
-    arriveeLongitude: "",
+    arriveeLatitude: null as number | null,
+    arriveeLongitude: null as number | null,
     nbPlaces: "",
     tarif: "",
     heureArriveeEstimee: new Date(),
   });
 
-  // ✅ Récupération ID étudiant simplifiée
   const getEtudiantId = (): string | null => {
     return user?.current ?? null;
   };
 
   const handleAdd = async () => {
-    console.log("handleAdd appelé");
+    console.log("on est dans handle Add")
     try {
       const etudiantId = getEtudiantId();
       if (!token?.current) return Alert.alert("Erreur", "Vous n'êtes pas connecté");
@@ -49,15 +48,15 @@ export default function DemandeAjoutScreen({ onCancel, onSuccess }: Props) {
 
       const departLatitude = Number(form.departLatitude);
       const departLongitude = Number(form.departLongitude);
-      const arriveeLatitude = Number(form.arriveeLatitude);
-      const arriveeLongitude = Number(form.arriveeLongitude);
+      const arriveeLatitude = form.arriveeLatitude;
+      const arriveeLongitude = form.arriveeLongitude;
       const nbPlaces = Number.parseInt(form.nbPlaces || "0", 10);
       const tarif = Number.parseFloat(form.tarif || "0");
 
       if (
-        [departLatitude, departLongitude, arriveeLatitude, arriveeLongitude].some(
-          Number.isNaN
-        )
+        [departLatitude, departLongitude].some(Number.isNaN) ||
+        arriveeLatitude === null ||
+        arriveeLongitude === null
       ) {
         Alert.alert(
           "Coordonnées manquantes",
@@ -82,7 +81,7 @@ export default function DemandeAjoutScreen({ onCancel, onSuccess }: Props) {
         heureArriveeEstimee: form.heureArriveeEstimee.toISOString(),
       };
 
-      console.log("Données envoyées:", dto);
+      console.log ("DTO Reponse", dto);
       const response = await DemandeService.createDemande(dto, token.current);
       const result = await response.json();
 
@@ -121,7 +120,6 @@ export default function DemandeAjoutScreen({ onCancel, onSuccess }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
-        {/* Point de départ */}
         <Text style={styles.label}>Point de départ</Text>
         <TextInput
           style={styles.input}
@@ -130,7 +128,6 @@ export default function DemandeAjoutScreen({ onCancel, onSuccess }: Props) {
           onChangeText={(txt) => setForm({ ...form, pointDepart: txt })}
         />
 
-        {/* Point d’arrivée */}
         <Text style={styles.label}>Point d’arrivée</Text>
         <TextInput
           style={styles.input}
@@ -139,7 +136,24 @@ export default function DemandeAjoutScreen({ onCancel, onSuccess }: Props) {
           onChangeText={(txt) => setForm({ ...form, pointArrivee: txt })}
         />
 
-        {/* Heure d'arrivée estimée */}
+        <MapView
+          style={{ width: "100%", height: 200, marginBottom: 10 }}
+          initialRegion={{
+            latitude: -18.9137,
+            longitude: 47.5361,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          }}
+          onPress={(e) => {
+            const { latitude, longitude } = e.nativeEvent.coordinate;
+            setForm({ ...form, arriveeLatitude: latitude, arriveeLongitude: longitude });
+          }}
+        >
+          {form.arriveeLatitude && form.arriveeLongitude && (
+            <Marker coordinate={{ latitude: form.arriveeLatitude, longitude: form.arriveeLongitude }} />
+          )}
+        </MapView>
+
         <Text style={styles.label}>Heure d'arrivée estimée</Text>
         <TouchableOpacity onPress={() => setShowTimePicker(true)} style={styles.input}>
           <Text>
@@ -158,7 +172,6 @@ export default function DemandeAjoutScreen({ onCancel, onSuccess }: Props) {
           />
         )}
 
-        {/* Nombre de places */}
         <Text style={styles.label}>Nombre de places</Text>
         <TextInput
           style={styles.input}
@@ -168,7 +181,6 @@ export default function DemandeAjoutScreen({ onCancel, onSuccess }: Props) {
           onChangeText={(txt) => setForm({ ...form, nbPlaces: txt })}
         />
 
-        {/* Tarif */}
         <Text style={styles.label}>Tarif</Text>
         <TextInput
           style={styles.input}

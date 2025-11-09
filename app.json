@@ -28,7 +28,12 @@
         "MODIFY_AUDIO_SETTINGS",
         "ACCESS_NETWORK_STATE",
         "INTERNET"
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyB2pcqIiX2bv2HVFzldL72CGIydrMlxYlg"
+        }
+      }
     },
     "web": {
       "bundler": "metro",
