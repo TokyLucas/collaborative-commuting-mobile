@@ -25,8 +25,8 @@ export default function DemandeAjoutScreen({ onCancel, onSuccess }: Props) {
 
   const [form, setForm] = useState({
     pointDepart: "",
-    departLatitude: "",
-    departLongitude: "",
+    departLatitude: null as number | null,
+    departLongitude: null as number | null,
     pointArrivee: "",
     arriveeLatitude: null as number | null,
     arriveeLongitude: null as number | null,
@@ -46,15 +46,16 @@ export default function DemandeAjoutScreen({ onCancel, onSuccess }: Props) {
       if (!token?.current) return Alert.alert("Erreur", "Vous n'êtes pas connecté");
       if (!etudiantId) return Alert.alert("Erreur", "Identifiant étudiant introuvable.");
 
-      const departLatitude = Number(form.departLatitude);
-      const departLongitude = Number(form.departLongitude);
+      const departLatitude = form.departLatitude;
+      const departLongitude = form.departLongitude;
       const arriveeLatitude = form.arriveeLatitude;
       const arriveeLongitude = form.arriveeLongitude;
       const nbPlaces = Number.parseInt(form.nbPlaces || "0", 10);
       const tarif = Number.parseFloat(form.tarif || "0");
 
       if (
-        [departLatitude, departLongitude].some(Number.isNaN) ||
+        departLatitude === null ||
+        departLongitude === null ||
         arriveeLatitude === null ||
         arriveeLongitude === null
       ) {
@@ -82,11 +83,11 @@ export default function DemandeAjoutScreen({ onCancel, onSuccess }: Props) {
       };
 
       console.log ("DTO Reponse", dto);
-      const response = await DemandeService.createDemande(dto, token.current);
-      const result = await response.json();
+      const result = await DemandeService.createDemande(dto, token.current);
+      // const result = await response.json();
 
-      if (!response.ok) {
-        Alert.alert("Erreur", result?.message || "Erreur lors de l'envoi.");
+      if (!result) {
+        Alert.alert("Erreur lors de l'envoi.");
         return;
       }
 
@@ -127,6 +128,24 @@ export default function DemandeAjoutScreen({ onCancel, onSuccess }: Props) {
           value={form.pointDepart}
           onChangeText={(txt) => setForm({ ...form, pointDepart: txt })}
         />
+
+        <MapView
+          style={{ width: "100%", height: 200, marginBottom: 10 }}
+          initialRegion={{
+            latitude: -18.9137,
+            longitude: 47.5361,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          }}
+          onPress={(e) => {
+            const { latitude, longitude } = e.nativeEvent.coordinate;
+            setForm({ ...form, departLatitude: latitude, departLongitude: longitude });
+          }}
+        >
+          {form.departLatitude && form.departLongitude && (
+            <Marker coordinate={{ latitude: form.departLatitude, longitude: form.departLongitude }} />
+          )}
+        </MapView>
 
         <Text style={styles.label}>Point d’arrivée</Text>
         <TextInput
