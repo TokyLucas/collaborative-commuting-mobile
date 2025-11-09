@@ -15,6 +15,7 @@ export default function ExploreScreen() {
   const [disponibilite, setDisponibilite] = useState<any | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [trajetEnRoute, setTrajetEnRoute] = useState<any | null>(null)
+  const [routePoints, setRoutePoints] = useState<any[] | null>(null)
 
   const channelRef = useRef(LocationChannel())
   const channel = channelRef.current
@@ -105,7 +106,7 @@ export default function ExploreScreen() {
           )
           if (res.ok) {
             const data = await res.json()
-            const enRoute = Array.isArray(data) ? data.find((t) => t.statut === "EN_ROUTE") : null
+            const enRoute = Array.isArray(data) ? data.find((t) => t.statut === "En route") : null
             if (enRoute) {
               const trajet = {
                 id: enRoute.id,
@@ -114,6 +115,14 @@ export default function ExploreScreen() {
                 placesDisponibles: enRoute.placesDisponibles,
               }
               setTrajetEnRoute(trajet)
+              if (userLocation) {
+                const url = `https://graphhopper.com/api/1/route?point=${userLocation.latitude},${userLocation.longitude}&point=${enRoute.latArrivee},${enRoute.lngArrivee}&vehicle=car&locale=fr&key=786c49d3-b386-4554-a770-218b01fc6fbe`
+                const r = await fetch(url)
+                const d = await r.json()
+                if (d.paths && d.paths[0]) {
+                  setRoutePoints(d.paths[0].points)
+                }
+              }
             } else {
               setTrajetEnRoute(null)
             }
@@ -127,7 +136,7 @@ export default function ExploreScreen() {
       }
     }
     fetchTrajet()
-  }, [token, user])
+  }, [token, user, userLocation])
 
   const leafletHTML = userLocation && trajetEnRoute
     ? `
@@ -135,6 +144,7 @@ export default function ExploreScreen() {
     <head>
       <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
       <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+      <script src="https://unpkg.com/@mapbox/polyline"></script>
       <style>
         #map { height: 100%; width: 100%; margin:0; padding:0; }
         body { margin:0; }
@@ -159,6 +169,11 @@ export default function ExploreScreen() {
           .addTo(window.map).bindPopup("<b>Vous</b>").openPopup();
         L.marker([${trajetEnRoute.latArrivee}, ${trajetEnRoute.lngArrivee}])
           .addTo(window.map).bindPopup("<b>Arrivée</b>");
+        ${routePoints ? `
+          var decoded = polyline.decode('${routePoints}');
+          var latlngs = decoded.map(function(p){ return [p[0], p[1]]; });
+          L.polyline(latlngs, {color: 'red'}).addTo(window.map);
+        ` : ''}
       </script>
     </body>
   </html>
@@ -238,7 +253,6 @@ export default function ExploreScreen() {
       console.error("Erreur update position:", e)
     }
   }
-
   return (
     <ThemedView style={styles.container}>
       {loading && <ActivityIndicator style={styles.loaderOverlay} size="large" />}
@@ -270,14 +284,14 @@ export default function ExploreScreen() {
             </TouchableOpacity>
             <Text style={styles.btnLabel}>Actif</Text>
           </View>
-
+  
           <View style={styles.btnWrapper}>
             <TouchableOpacity style={styles.updateBtn} onPress={updatePosition}>
               <Ionicons name="refresh-outline" size={24} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.btnLabel}>Maj</Text>
           </View>
-
+  
           <View style={styles.btnWrapper}>
             <TouchableOpacity style={[styles.requestBtn, !ready && { opacity: 0.5 }]}
               onPress={() => ready && channel.requestLocation()}
@@ -286,7 +300,7 @@ export default function ExploreScreen() {
             </TouchableOpacity>
             <Text style={styles.btnLabel}>Demander</Text>
           </View>
-
+  
           <View style={styles.btnWrapper}>
             <TouchableOpacity style={[styles.sendBtn, !ready && { opacity: 0.5 }]}
               onPress={() => {
@@ -300,7 +314,7 @@ export default function ExploreScreen() {
             </TouchableOpacity>
             <Text style={styles.btnLabel}>Envoyer</Text>
           </View>
-
+  
           <View style={styles.btnWrapper}>
             <TouchableOpacity style={styles.recenterBtn} onPress={recenter}>
               <Ionicons name="locate-outline" size={24} color="#fff" />
@@ -308,7 +322,6 @@ export default function ExploreScreen() {
             <Text style={styles.btnLabel}>Centre</Text>
           </View>
         </View>
-
   
         {!disponibilite && (
           <View style={styles.btnWrapper}>
@@ -321,103 +334,102 @@ export default function ExploreScreen() {
       </View>
     </ThemedView>
   )
+  }
   
-}
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  map: { flex: 1 },
-  bottomPanel: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    paddingTop: 12,
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    elevation: 10,
-  },
-  statusText: {
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'flex-end',
-    paddingTop: 6,
-  },
-  btnWrapper: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  btnLabel: {
-    fontSize: 12,
-    color: '#2ECC71',
-    textAlign: 'center',
-    lineHeight: 14,
-  },
-  toggleBtn: {
-    backgroundColor: '#27AE60',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  updateBtn: {
-    backgroundColor: '#1ABC9C',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  requestBtn: {
-    backgroundColor: '#58D68D',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    opacity: 1,
-  },
-  sendBtn: {
-    backgroundColor: '#28B463',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    opacity: 1,
-  },
-  recenterBtn: {
-    backgroundColor: '#2ECC71',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  initBtn: {
-    backgroundColor: '#28B463',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignSelf: 'center',
-    marginTop: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loaderOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-})
+  const styles = StyleSheet.create({
+    container: { flex: 1 },
+    map: { flex: 1 },
+    bottomPanel: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: '#fff',
+      paddingTop: 12,
+      paddingHorizontal: 16,
+      paddingBottom: 20,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      elevation: 10,
+    },
+    statusText: {
+      textAlign: 'center',
+      fontSize: 16,
+      fontWeight: '600',
+      marginBottom: 8,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      alignItems: 'flex-end',
+      paddingTop: 6,
+    },
+    btnWrapper: {
+      alignItems: 'center',
+      gap: 6,
+    },
+    btnLabel: {
+      fontSize: 12,
+      color: '#2ECC71',
+      textAlign: 'center',
+      lineHeight: 14,
+    },
+    toggleBtn: {
+      backgroundColor: '#27AE60',
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    updateBtn: {
+      backgroundColor: '#1ABC9C',
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    requestBtn: {
+      backgroundColor: '#58D68D',
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      justifyContent: 'center',
+      alignItems: 'center',
+      opacity: 1,
+    },
+    sendBtn: {
+      backgroundColor: '#28B463',
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      justifyContent: 'center',
+      alignItems: 'center',
+      opacity: 1,
+    },
+    recenterBtn: {
+      backgroundColor: '#2ECC71',
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    initBtn: {
+      backgroundColor: '#28B463',
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      alignSelf: 'center',
+      marginTop: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    loaderOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(255,255,255,0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+  })

@@ -16,6 +16,10 @@ export default function LocationChannel() {
   let joinedRoom = false
   let isInitiator = false
 
+  let isMakingOffer = false
+  let isSettingRemoteAnswerPending = false
+  let ignoreOffer = false
+
   const setOnLocationRequest = (cb) => { onLocationRequest = cb }
   const setOnCoords = (cb) => { onCoords = cb }
   const setOnReady = (cb) => { onReady = cb }
@@ -52,133 +56,138 @@ export default function LocationChannel() {
       if (!userID || userID === socket.id) return
       otherUser = userID
       isInitiator = true
-      if (!peer) callUser(userID)
+      if (!peer) startPeer(userID)
     })
 
     socket.on('user joined', (userID) => {
       if (!userID || userID === socket.id) return
       otherUser = userID
       isInitiator = false
+      if (!peer) startPeer()
     })
 
     socket.on('user left', (userID) => {
-      if (!userID || userID !== otherUser) return
-      otherUser = null
-      isInitiator = false
-      softResetPeer()
+      if (userID && userID === otherUser) {
+        otherUser = null
+        isInitiator = false
+        softResetPeer()
+      }
     })
 
     socket.on('offer', (msg) => {
       if (!msg || msg.caller === socket.id || msg.target !== socket.id) return
-      handleOffer(msg)
+      onOffer(msg)
     })
 
     socket.on('answer', (msg) => {
       if (!msg || msg.caller === socket.id || msg.target !== socket.id) return
-      handleAnswer(msg)
+      onAnswer(msg)
     })
 
     socket.on('ice-candidate', (msg) => {
       if (!msg || msg.caller === socket.id || msg.target !== socket.id) return
-      handleNewICECandidateMsg(msg)
+      onRemoteIce(msg)
     })
   }
 
-  const Peer = (userID) => {
-    const peerConn = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] })
-    peerConn.onicecandidate = handleICECandidateEvent
-    peerConn.ondatachannel = (event) => setupDataChannel(event.channel)
-    peerConn.onconnectionstatechange = () => {
-      const s = peerConn.connectionState
+  const startPeer = (userID) => {
+    peer = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] })
+
+    peer.onicecandidate = (e) => {
+      if (e.candidate && otherUser) {
+        socket.emit('ice-candidate', { target: otherUser, caller: socket.id, candidate: e.candidate })
+      }
+    }
+
+    peer.ondatachannel = (ev) => setupDataChannel(ev.channel)
+
+    peer.onconnectionstatechange = () => {
+      const s = peer.connectionState
       if (s === 'connected') {
         isChannelReady = true
         onReady && onReady(true)
-      } else if (s === 'disconnected') {
-        onReady && onReady(false)
-      } else if (s === 'failed') {
-        onReady && onReady(false)
-      } else if (s === 'closed') {
+      } else if (s === 'disconnected' || s === 'failed' || s === 'closed') {
         isChannelReady = false
         onReady && onReady(false)
       }
     }
-    if (userID) peerConn.onnegotiationneeded = () => handleNegotiationNeededEvent(userID)
-    return peerConn
+
+    if (isInitiator && userID) {
+      const dc = peer.createDataChannel('location')
+      setupDataChannel(dc)
+      negotiate(userID)
+    }
   }
 
   const setupDataChannel = (channel) => {
     dataChannel = channel
     dataChannel.onmessage = handleReceiveMessage
-    dataChannel.onopen = () => {
-      isChannelReady = true
-      onReady && onReady(true)
+    dataChannel.onopen = () => { isChannelReady = true; onReady && onReady(true) }
+    dataChannel.onclose = () => { isChannelReady = false; onReady && onReady(false) }
+  }
+
+  const negotiate = async (userID) => {
+    try {
+      isMakingOffer = true
+      const offer = await peer.createOffer()
+      await peer.setLocalDescription(offer)
+      socket.emit('offer', { target: userID, caller: socket.id, sdp: peer.localDescription })
+    } catch (err) {
+      console.error('Negotiation error:', err)
+    } finally {
+      isMakingOffer = false
     }
-    dataChannel.onclose = () => {
-      isChannelReady = false
-      onReady && onReady(false)
-    }
   }
 
-  const callUser = (userID) => {
-    if (peer) return
-    peer = Peer(userID)
-    const dc = peer.createDataChannel('location')
-    setupDataChannel(dc)
-  }
+  const onOffer = async (incoming) => {
+    try {
+      const offerDesc = new RTCSessionDescription(incoming.sdp)
+      const offerCollision = (isMakingOffer || peer?.signalingState !== 'stable')
 
-  const handleNegotiationNeededEvent = (userID) => {
-    if (!peer || !socket || !isInitiator) return
-    peer.createOffer()
-      .then((offer) => peer.setLocalDescription(offer))
-      .then(() => {
-        socket.emit('offer', { target: userID, caller: socket.id, sdp: peer.localDescription })
-      })
-      .catch((err) => console.error('Negotiation error:', err))
-  }
+      ignoreOffer = !isInitiator && offerCollision
+      if (ignoreOffer) return
 
-  const handleOffer = (incoming) => {
-    if (peer) return
-    otherUser = incoming.caller
-    isInitiator = false
-    peer = Peer()
-    const desc = new RTCSessionDescription(incoming.sdp)
-    peer.setRemoteDescription(desc)
-      .then(() => peer.createAnswer())
-      .then((answer) => peer.setLocalDescription(answer))
-      .then(() => {
-        socket.emit('answer', { target: incoming.caller, caller: socket.id, sdp: peer.localDescription })
-        if (pendingCandidates.length) {
-          pendingCandidates.forEach(c => peer.addIceCandidate(c).catch(() => {}))
-          pendingCandidates = []
+      await peer.setRemoteDescription(offerDesc)
+      const answer = await peer.createAnswer()
+      isSettingRemoteAnswerPending = true
+      await peer.setLocalDescription(answer)
+      isSettingRemoteAnswerPending = false
+
+      socket.emit('answer', { target: incoming.caller, caller: socket.id, sdp: peer.localDescription })
+
+      if (pendingCandidates.length) {
+        for (const c of pendingCandidates) {
+          try { await peer.addIceCandidate(c) } catch {}
         }
-      })
-      .catch((e) => console.error('Offer handling error:', e))
-  }
-
-  const handleAnswer = (message) => {
-    if (!peer) return
-    const desc = new RTCSessionDescription(message.sdp)
-    peer.setRemoteDescription(desc)
-      .then(() => {
-        if (pendingCandidates.length) {
-          pendingCandidates.forEach(c => peer.addIceCandidate(c).catch(() => {}))
-          pendingCandidates = []
-        }
-      })
-      .catch((e) => console.error('Answer error:', e))
-  }
-
-  const handleICECandidateEvent = (e) => {
-    if (e.candidate && otherUser) {
-      socket.emit('ice-candidate', { target: otherUser, candidate: e.candidate, caller: socket.id })
+        pendingCandidates = []
+      }
+    } catch (err) {
+      console.error('Offer handling error:', err)
     }
   }
 
-  const handleNewICECandidateMsg = (incoming) => {
+  const onAnswer = async (message) => {
+    try {
+      const answerDesc = new RTCSessionDescription(message.sdp)
+      await peer.setRemoteDescription(answerDesc)
+      if (pendingCandidates.length) {
+        for (const c of pendingCandidates) {
+          try { await peer.addIceCandidate(c) } catch {}
+        }
+        pendingCandidates = []
+      }
+    } catch (err) {
+      console.error('Answer error:', err)
+    } finally {
+      isSettingRemoteAnswerPending = false
+    }
+  }
+
+  const onRemoteIce = async (incoming) => {
     const payload = incoming.candidate || incoming
     const candidate = new RTCIceCandidate(payload)
     if (peer && peer.remoteDescription) {
-      peer.addIceCandidate(candidate).catch((e) => console.error('ICE error:', e))
+      try { await peer.addIceCandidate(candidate) } catch (e) { console.error('ICE error:', e) }
     } else {
       pendingCandidates.push(candidate)
     }
@@ -212,11 +221,12 @@ export default function LocationChannel() {
     isChannelReady = false
     onReady && onReady(false)
     pendingCandidates = []
+    isMakingOffer = false
+    isSettingRemoteAnswerPending = false
+    ignoreOffer = false
   }
 
-  const resetPeer = () => {
-    softResetPeer()
-  }
+  const resetPeer = () => { softResetPeer() }
 
   const close = () => {
     softResetPeer()
