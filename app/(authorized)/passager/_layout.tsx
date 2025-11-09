@@ -14,6 +14,10 @@ export default function TabLayout1() {
     const { token, user } = useAuthSession()
     const colorScheme = useColorScheme();
     const router = useRouter();
+    
+    if (!user?.current) {
+        return null;
+      }
 
     if (user?.current) {
         let user_data: any = null;
